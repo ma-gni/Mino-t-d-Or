@@ -29,8 +29,13 @@ public class Product {
     @Column(nullable = false)
     private int stockQuantity;
 
+    @ManyToOne
+    @JoinColumn(name = "supplier_id")
+    private Supplier supplier;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
     private Category category;
+
 
 }

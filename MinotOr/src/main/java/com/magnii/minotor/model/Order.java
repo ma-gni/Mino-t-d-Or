@@ -42,7 +42,6 @@ public class Order {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal total;
 
-    // Enum for order status
     public enum OrderStatus {
         PENDING, COMPLETED, CANCELLED
     }
