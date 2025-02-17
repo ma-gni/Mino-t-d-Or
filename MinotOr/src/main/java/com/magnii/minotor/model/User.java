@@ -1,6 +1,7 @@
 package com.magnii.minotor.model;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -30,6 +31,15 @@ public class User {
     @NotBlank(message = "Password cannot be empty")
     @Size(min = 6, message = "Password must be at least 6 characters")
     private String password;
+
+    @Column(nullable = false)
+    @NotBlank(message = "can't be empty")
+    @Email(message = "email should be valid")
+    private String email;
+
+    @Column(nullable = false)
+    @NotBlank(message = "can't be empty")
+    private String address;
 
     @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private Set<Order> orders;
