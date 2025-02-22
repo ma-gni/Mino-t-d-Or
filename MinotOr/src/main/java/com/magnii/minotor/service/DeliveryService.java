@@ -4,7 +4,6 @@ import com.magnii.minotor.dto.DeliveryDTO;
 import com.magnii.minotor.mapper.DeliveryMapper;
 import com.magnii.minotor.model.Delivery;
 import com.magnii.minotor.repository.DeliveryRepository;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
