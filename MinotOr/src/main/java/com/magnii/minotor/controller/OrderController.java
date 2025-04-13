@@ -1,6 +1,8 @@
 package com.magnii.minotor.controller;
 
 import com.magnii.minotor.dto.OrderDTO;
+import com.magnii.minotor.mapper.OrderMapper;
+import com.magnii.minotor.model.Order;
 import com.magnii.minotor.service.OrderService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -12,9 +14,11 @@ import java.util.List;
 public class OrderController {
 
     private final OrderService orderService;
+    private final OrderMapper orderMapper; // Add OrderMapper field
 
-    public OrderController(OrderService orderService){
+    public OrderController(OrderService orderService, OrderMapper orderMapper){
         this.orderService = orderService;
+        this.orderMapper = orderMapper;
     }
 
     @GetMapping("/{id}")
@@ -42,8 +46,9 @@ public class OrderController {
     }
 
     @PostMapping
-    public ResponseEntity<OrderDTO> createOrder(@RequestBody OrderDTO orderDTO){
-        OrderDTO createdOrder = orderService.createOrder(orderDTO);
-        return ResponseEntity.ok(createdOrder);
+    public ResponseEntity<OrderDTO> createOrder(@RequestBody OrderDTO orderDTO){ // Update method
+        Order createdOrder = orderService.createOrder(orderDTO);
+        OrderDTO createdOrderDTO = orderMapper.toDto(createdOrder);
+        return ResponseEntity.ok(createdOrderDTO);
     }
 }
