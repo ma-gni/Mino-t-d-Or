@@ -2,7 +2,9 @@ package com.magnii.minotor.service;
 
 import com.magnii.minotor.dto.PaymentDTO;
 import com.magnii.minotor.mapper.PaymentMapper;
+import com.magnii.minotor.model.Order;
 import com.magnii.minotor.model.Payment;
+import com.magnii.minotor.repository.OrderRepository;
 import com.magnii.minotor.repository.PaymentRepository;
 import org.springframework.stereotype.Service;
 
@@ -13,10 +15,12 @@ public class PaymentService {
 
     private final PaymentRepository paymentRepository;
     private final PaymentMapper paymentMapper;
+    private final OrderRepository orderRepository;
 
-    public PaymentService(PaymentRepository paymentRepository, PaymentMapper paymentMapper) {
+    public PaymentService(PaymentRepository paymentRepository, PaymentMapper paymentMapper, OrderRepository orderRepository) {
         this.paymentRepository = paymentRepository;
         this.paymentMapper = paymentMapper;
+        this.orderRepository = orderRepository;
     }
 
     public List<PaymentDTO> getAllPayments() {
@@ -32,6 +36,11 @@ public class PaymentService {
 
     public PaymentDTO createPayment(PaymentDTO paymentDTO) {
         Payment payment = paymentMapper.toEntity(paymentDTO);
+
+        Order order = orderRepository.findById(paymentDTO.getOrderId())
+                                                            .orElseThrow(() -> new RuntimeException("Order not found"));
+
+        payment.setOrder(order);
         payment = paymentRepository.save(payment);
         return paymentMapper.toDto(payment);
     }
