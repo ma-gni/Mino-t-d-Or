@@ -8,6 +8,7 @@ import com.magnii.minotor.model.User;
 import com.magnii.minotor.repository.OrderRepository;
 import com.magnii.minotor.repository.PaymentRepository;
 import com.magnii.minotor.repository.UserRepository;
+import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -19,6 +20,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.test.annotation.Rollback;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
@@ -29,7 +32,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@ActiveProfiles("test")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Transactional
+@Rollback
 public class PaymentControllerIntegrationTest {
 
     @Autowired
@@ -139,13 +145,5 @@ public class PaymentControllerIntegrationTest {
                 .andExpect(jsonPath("$[0].amount").value(50.00));
     }
 
-    @TestConfiguration
-    public static class TestSecurityConfig {
-        @Bean
-        public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-            http.csrf(csrf -> csrf.disable())
-                    .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
-            return http.build();
-        }
-    }
+
 }
