@@ -6,6 +6,7 @@ import com.magnii.minotor.model.Order;
 import com.magnii.minotor.model.User;
 import com.magnii.minotor.model.Order.OrderStatus;
 import com.magnii.minotor.repository.DeliveryRepository;
+import com.magnii.minotor.repository.FeedbackRepository;
 import com.magnii.minotor.repository.OrderRepository;
 import com.magnii.minotor.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,10 +47,14 @@ public class DeliveryControllerIntegrationTest {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private FeedbackRepository feedbackRepository;
+
     private Long dummyOrderId;
 
     @BeforeEach
     public void setUp() {
+        feedbackRepository.deleteAll();
         deliveryRepository.deleteAll();
         orderRepository.deleteAll();
         userRepository.deleteAll();
