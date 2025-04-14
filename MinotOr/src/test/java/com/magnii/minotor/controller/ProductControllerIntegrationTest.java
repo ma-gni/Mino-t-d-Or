@@ -6,6 +6,7 @@ import com.magnii.minotor.model.Category;
 import com.magnii.minotor.repository.CategoryRepository;
 import com.magnii.minotor.repository.OrderDetailRepository;
 import com.magnii.minotor.repository.ProductRepository;
+import com.magnii.minotor.repository.StockRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,9 +44,13 @@ public class ProductControllerIntegrationTest {
     @Autowired
     private OrderDetailRepository orderDetailRepository;
 
+    @Autowired
+    private StockRepository stockRepository;
+
     @BeforeEach
     void setUp() {
-        orderDetailRepository.deleteAll(); // Delete children first
+        orderDetailRepository.deleteAll(); // delete child entities first
+        stockRepository.deleteAll();       // <- 💥 delete stocks before products
         productRepository.deleteAll();
         categoryRepository.deleteAll();
 

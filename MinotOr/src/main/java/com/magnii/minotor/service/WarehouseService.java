@@ -4,7 +4,9 @@ import com.magnii.minotor.dto.WarehouseDTO;
 import com.magnii.minotor.mapper.WarehouseMapper;
 import com.magnii.minotor.model.Warehouse;
 import com.magnii.minotor.repository.WarehouseRepository;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -25,9 +27,9 @@ public class WarehouseService {
     }
 
     public WarehouseDTO getWarehouseById(Long id) {
-        Warehouse warehouse = warehouseRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Warehouse not found with id: " + id));
-        return warehouseMapper.toDto(warehouse);
+        return warehouseRepository.findById(id)
+                .map(warehouseMapper::toDto)
+                .orElse(null);
     }
 
     public WarehouseDTO createWarehouse(WarehouseDTO warehouseDTO) {
@@ -45,8 +47,12 @@ public class WarehouseService {
         Warehouse updatedWarehouse = warehouseRepository.save(existingWarehouse);
         return warehouseMapper.toDto(updatedWarehouse);
     }
-
-    public void deleteWarehouse(Long id) {
-        warehouseRepository.deleteById(id);
+    public boolean deleteWarehouse(Long id) {
+        if (warehouseRepository.existsById(id)) {
+            warehouseRepository.deleteById(id);
+            return true;
+        }
+        return false;
     }
+
 }
