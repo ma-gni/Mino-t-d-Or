@@ -9,7 +9,7 @@
  * - Les fonctions de gestion de l'authentification (login, logout)
  * 
  * Ce contexte est crucial car il permet de gérer l'état de connexion de l'utilisateur
- * et d'adapter l'interface en fonction de son rôle (boulanger ou minotier).
+ * et d'adapter l'interface en fonction de son rôle (boulanger, commercial, approvisionnement, preparation, maintenance).
  */
 
 import React, { createContext, useState, useContext } from 'react';
@@ -30,6 +30,17 @@ const AuthContext = createContext();
  * @returns {Object} Le contexte d'authentification
  */
 export const useAuth = () => useContext(AuthContext);
+
+/**
+ * Liste des rôles disponibles dans l'application
+ */
+export const ROLES = {
+  BOULANGER: 'boulanger',
+  COMMERCIAL: 'commercial',
+  APPROVISIONNEMENT: 'approvisionnement',
+  PREPARATION: 'preparation',
+  MAINTENANCE: 'maintenance'
+};
 
 /**
  * Provider global du contexte d'authentification
@@ -70,7 +81,7 @@ export const AuthProvider = ({ children }) => {
       email: userData.email,
       firstName: userData.firstName,
       lastName: userData.lastName,
-      role: userData.role || 'baker', // Par défaut, on met le rôle boulanger
+      role: userData.role || ROLES.BOULANGER, // Par défaut, on met le rôle boulanger
     });
     setIsAuthenticated(true);
   };
@@ -87,13 +98,69 @@ export const AuthProvider = ({ children }) => {
   };
 
   /**
+   * Vérifie si l'utilisateur possède un rôle spécifique
+   * 
+   * @param {string} role Le rôle à vérifier
+   * @returns {boolean} Vrai si l'utilisateur a le rôle spécifié, faux sinon
+   */
+  const hasRole = (role) => {
+    return user?.role === role;
+  };
+
+  /**
+   * Vérifie si l'utilisateur est un boulanger
+   * 
+   * @returns {boolean} Vrai si l'utilisateur est un boulanger, faux sinon
+   */
+  const isBoulanger = () => hasRole(ROLES.BOULANGER);
+
+  /**
+   * Vérifie si l'utilisateur est un commercial
+   * 
+   * @returns {boolean} Vrai si l'utilisateur est un commercial, faux sinon
+   */
+  const isCommercial = () => hasRole(ROLES.COMMERCIAL);
+
+  /**
+   * Vérifie si l'utilisateur est du service approvisionnement
+   * 
+   * @returns {boolean} Vrai si l'utilisateur est du service approvisionnement, faux sinon
+   */
+  const isApprovisionnement = () => hasRole(ROLES.APPROVISIONNEMENT);
+
+  /**
+   * Vérifie si l'utilisateur est du service préparation
+   * 
+   * @returns {boolean} Vrai si l'utilisateur est du service préparation, faux sinon
+   */
+  const isPreparation = () => hasRole(ROLES.PREPARATION);
+
+  /**
+   * Vérifie si l'utilisateur est du service maintenance
+   * 
+   * @returns {boolean} Vrai si l'utilisateur est du service maintenance, faux sinon
+   */
+  const isMaintenance = () => hasRole(ROLES.MAINTENANCE);
+
+  /**
    * Valeur du contexte
    * 
    * Cette valeur contient l'état de l'utilisateur, l'état d'authentification
    * et les fonctions de gestion de l'authentification.
    */
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, login, logout }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      isAuthenticated, 
+      login, 
+      logout,
+      hasRole,
+      isBoulanger,
+      isCommercial,
+      isApprovisionnement,
+      isPreparation,
+      isMaintenance
+    }}>
       {children}
     </AuthContext.Provider>
   );
