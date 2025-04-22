@@ -139,10 +139,10 @@ const Home = () => {
             <div className="mt-10 flex justify-center gap-4 animate-scale-in delay-400">
               {!isAuthenticated ? (
                 <>
-                  <Link to="/register" className="btn-primary animate-border-glow">
+                  <Link to="/inscription" className="btn-primary animate-border-glow">
                     Commencer gratuitement
                   </Link>
-                  <Link to="/login" className="btn-secondary text-white border-white hover:bg-white/10">
+                  <Link to="/connexion" className="btn-secondary text-white border-white hover:bg-white/10">
                     Se connecter
                   </Link>
                 </>
@@ -295,7 +295,7 @@ const Home = () => {
             <div className="mt-8 flex lg:mt-0 lg:flex-shrink-0 animate-scale-in delay-300">
               {!isAuthenticated ? (
                 <div className="flex gap-4">
-                  <Link to="/register" className="btn-primary bg-white text-indigo-600 hover:bg-gray-100 animate-border-glow">
+                  <Link to="/inscription" className="btn-primary bg-white text-indigo-600 hover:bg-gray-100 animate-border-glow">
                     Essayer gratuitement
                   </Link>
                   <Link to="/contact" className="btn-secondary text-white border-white hover:bg-white/10">
