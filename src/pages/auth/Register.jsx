@@ -3,22 +3,22 @@
  * --------------------------------------------------
  * Page d'inscription de l'application Minot'Or
  * 
- * Cette page permet aux nouveaux utilisateurs :
+ * Cette page permet aux nouveaux boulangers exclusivement :
  * - De créer un compte en fournissant leurs informations personnelles
- * - De sélectionner leur rôle (boulanger ou minotier)
  * - De définir leurs identifiants de connexion
+ * - D'enregistrer les informations de leur boulangerie
  * 
  * Après une inscription réussie, l'utilisateur est redirigé vers la page de connexion.
  */
 
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import { useNavigate, Link } from 'react-router-dom';
+import { useAuth, ROLES } from '../../context/AuthContext';
 
 /**
  * Fonction Register
  * 
- * Cette fonction définit la page d'inscription de l'application.
+ * Cette fonction définit la page d'inscription des boulangers.
  * Elle utilise les hooks useState pour gérer les données du formulaire
  * et useAuth pour accéder aux fonctions d'inscription.
  * 
@@ -26,17 +26,16 @@ import { useAuth } from '../../context/AuthContext';
  */
 export default function Register() {
   const navigate = useNavigate();
-  const { register } = useAuth();
+  const { login } = useAuth();
   const [formData, setFormData] = useState({
     // Informations personnelles
     firstName: '',
     lastName: '',
     email: '',
     password: '',
-    role: 'baker', // baker, commercial, supply, maintenance, warehouse
-    function: '',
+    passwordConfirm: '',
     
-    // Informations entreprise
+    // Informations boulangerie
     companyName: '',
     siret: '',
     address: '',
@@ -47,6 +46,7 @@ export default function Register() {
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [step, setStep] = useState(1); // 1: Informations personnelles, 2: Informations boulangerie
 
   /**
    * Fonction handleChange
@@ -65,6 +65,36 @@ export default function Register() {
   };
 
   /**
+   * Fonction nextStep
+   * 
+   * Cette fonction vérifie les informations de l'étape 1 avant de passer à l'étape 2
+   */
+  const nextStep = () => {
+    // Vérification des mots de passe
+    if (formData.password !== formData.passwordConfirm) {
+      setError('Les mots de passe ne correspondent pas');
+      return;
+    }
+    
+    if (formData.password.length < 8) {
+      setError('Le mot de passe doit contenir au moins 8 caractères');
+      return;
+    }
+    
+    setError('');
+    setStep(2);
+  };
+
+  /**
+   * Fonction previousStep
+   * 
+   * Cette fonction permet de revenir à l'étape précédente
+   */
+  const previousStep = () => {
+    setStep(1);
+  };
+
+  /**
    * Fonction handleSubmit
    * 
    * Cette fonction est appelée lorsqu'on soumet le formulaire.
@@ -78,198 +108,214 @@ export default function Register() {
     try {
       setError('');
       setLoading(true);
-      await register(formData);
-      navigate('/');
+      
+      // Simulation d'une inscription réussie
+      // Dans une application réelle, il faudrait appeler une API d'inscription
+      setTimeout(() => {
+        // Connexion automatique après inscription
+        login({
+          email: formData.email,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          role: ROLES.BOULANGER
+        });
+        
+        // Redirection vers le tableau de bord boulanger
+        navigate('/boulanger/dashboard');
+      }, 1500);
     } catch (err) {
       setError('Erreur lors de l\'inscription: ' + err.message);
-    } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-md">
-      <h2 className="text-2xl font-bold mb-6">Inscription</h2>
-      
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          {error}
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4 py-12">
+      <div className="max-w-4xl w-full bg-white p-8 rounded-lg shadow-lg">
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-bold text-gray-900">Créer un compte boulanger</h2>
+          <p className="mt-2 text-gray-600">
+            Déjà inscrit? <Link to="/connexion" className="text-indigo-600 hover:text-indigo-500">Se connecter</Link>
+          </p>
         </div>
-      )}
+        
+        {/* Affichage des erreurs */}
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
+            {error}
+          </div>
+        )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Informations personnelles */}
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <h3 className="text-lg font-semibold mb-4">Informations personnelles</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Prénom</label>
-              <input
-                type="text"
-                name="firstName"
-                value={formData.firstName}
-                onChange={handleChange}
-                required
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              />
+        {/* Indicateur d'étape */}
+        <div className="flex items-center justify-center mb-8">
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${step === 1 ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700'}`}>1</div>
+          <div className="h-1 w-16 bg-gray-200 mx-2"></div>
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${step === 2 ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700'}`}>2</div>
+        </div>
+
+        <form onSubmit={step === 2 ? handleSubmit : (e) => { e.preventDefault(); nextStep(); }} className="space-y-6">
+          {/* Étape 1: Informations personnelles */}
+          {step === 1 && (
+            <div className="bg-gray-50 p-6 rounded-lg">
+              <h3 className="text-xl font-semibold mb-6 text-indigo-700">Vos informations personnelles</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Prénom</label>
+                  <input
+                    type="text"
+                    name="firstName"
+                    value={formData.firstName}
+                    onChange={handleChange}
+                    required
+                    className="block w-full px-4 py-2 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nom</label>
+                  <input
+                    type="text"
+                    name="lastName"
+                    value={formData.lastName}
+                    onChange={handleChange}
+                    required
+                    className="block w-full px-4 py-2 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    required
+                    className="block w-full px-4 py-2 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    required
+                    className="block w-full px-4 py-2 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Mot de passe</label>
+                  <input
+                    type="password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    required
+                    className="block w-full px-4 py-2 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Confirmer le mot de passe</label>
+                  <input
+                    type="password"
+                    name="passwordConfirm"
+                    value={formData.passwordConfirm}
+                    onChange={handleChange}
+                    required
+                    className="block w-full px-4 py-2 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Nom</label>
-              <input
-                type="text"
-                name="lastName"
-                value={formData.lastName}
-                onChange={handleChange}
-                required
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              />
+          )}
+
+          {/* Étape 2: Informations boulangerie */}
+          {step === 2 && (
+            <div className="bg-gray-50 p-6 rounded-lg">
+              <h3 className="text-xl font-semibold mb-6 text-indigo-700">Informations de votre boulangerie</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nom de la boulangerie</label>
+                  <input
+                    type="text"
+                    name="companyName"
+                    value={formData.companyName}
+                    onChange={handleChange}
+                    required
+                    className="block w-full px-4 py-2 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">SIRET</label>
+                  <input
+                    type="text"
+                    name="siret"
+                    value={formData.siret}
+                    onChange={handleChange}
+                    required
+                    className="block w-full px-4 py-2 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Adresse</label>
+                  <input
+                    type="text"
+                    name="address"
+                    value={formData.address}
+                    onChange={handleChange}
+                    required
+                    className="block w-full px-4 py-2 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Ville</label>
+                  <input
+                    type="text"
+                    name="city"
+                    value={formData.city}
+                    onChange={handleChange}
+                    required
+                    className="block w-full px-4 py-2 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Code postal</label>
+                  <input
+                    type="text"
+                    name="postalCode"
+                    value={formData.postalCode}
+                    onChange={handleChange}
+                    required
+                    className="block w-full px-4 py-2 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Email</label>
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                required
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Mot de passe</label>
-              <input
-                type="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                required
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Rôle</label>
-              <select
-                name="role"
-                value={formData.role}
-                onChange={handleChange}
-                required
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          )}
+
+          {/* Boutons de navigation */}
+          <div className="flex justify-between mt-8">
+            {step === 2 && (
+              <button
+                type="button"
+                onClick={previousStep}
+                className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               >
-                <option value="baker">Boulanger</option>
-                <option value="commercial">Commercial</option>
-                <option value="supply">Approvisionnement</option>
-                <option value="maintenance">Maintenance</option>
-                <option value="warehouse">Entrepôt</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Fonction</label>
-              <input
-                type="text"
-                name="function"
-                value={formData.function}
-                onChange={handleChange}
-                required
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              />
+                Retour
+              </button>
+            )}
+            <div className={step === 2 ? 'ml-auto' : 'w-full'}>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-300"
+              >
+                {loading ? 'Traitement en cours...' : step === 1 ? 'Continuer' : 'S\'inscrire'}
+              </button>
             </div>
           </div>
-        </div>
-
-        {/* Informations entreprise */}
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <h3 className="text-lg font-semibold mb-4">Informations entreprise</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700">Raison sociale</label>
-              <input
-                type="text"
-                name="companyName"
-                value={formData.companyName}
-                onChange={handleChange}
-                required
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              />
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700">SIRET</label>
-              <input
-                type="text"
-                name="siret"
-                value={formData.siret}
-                onChange={handleChange}
-                required
-                pattern="[0-9]{14}"
-                title="Le numéro SIRET doit contenir 14 chiffres"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              />
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700">Adresse</label>
-              <input
-                type="text"
-                name="address"
-                value={formData.address}
-                onChange={handleChange}
-                required
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Ville</label>
-              <input
-                type="text"
-                name="city"
-                value={formData.city}
-                onChange={handleChange}
-                required
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Code postal</label>
-              <input
-                type="text"
-                name="postalCode"
-                value={formData.postalCode}
-                onChange={handleChange}
-                required
-                pattern="[0-9]{5}"
-                title="Le code postal doit contenir 5 chiffres"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              />
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700">Téléphone</label>
-              <input
-                type="tel"
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-                required
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="flex justify-end space-x-4">
-          <button
-            type="button"
-            onClick={() => navigate('/login')}
-            className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-          >
-            Déjà inscrit ?
-          </button>
-          <button
-            type="submit"
-            disabled={loading}
-            className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-          >
-            {loading ? 'Inscription...' : 'S\'inscrire'}
-          </button>
-        </div>
-      </form>
+        </form>
+      </div>
     </div>
   );
 }

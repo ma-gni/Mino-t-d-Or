@@ -5,15 +5,16 @@
  * 
  * Cette page permet aux utilisateurs :
  * - De se connecter avec leur email et mot de passe
+ * - De sélectionner leur rôle (boulanger, commercial, etc.)
  * - D'accéder à l'option de récupération de mot de passe
- * - De naviguer vers la page d'inscription
+ * - De naviguer vers la page d'inscription (pour les boulangers uniquement)
  * 
- * Après une connexion réussie, l'utilisateur est redirigé vers le tableau de bord.
+ * Après une connexion réussie, l'utilisateur est redirigé vers le tableau de bord correspondant à son rôle.
  */
 
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import { useNavigate, Link } from 'react-router-dom';
+import { useAuth, ROLES } from '../../context/AuthContext';
 
 /**
  * Fonction principale de la page de connexion
@@ -27,25 +28,56 @@ export default function Login() {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    role: 'baker'
+    role: ROLES.BOULANGER
   });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   /**
    * Fonction de soumission du formulaire de connexion
    * 
    * Cette fonction est appelée lorsque l'utilisateur soumet le formulaire de connexion.
-   * Elle simule une connexion réussie et redirige l'utilisateur vers le tableau de bord.
+   * Elle simule une connexion réussie et redirige l'utilisateur vers le tableau de bord correspondant à son rôle.
    */
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Simulation d'une connexion réussie
-    login({
-      email: formData.email,
-      firstName: 'John',
-      lastName: 'Doe',
-      role: formData.role
-    });
-    navigate('/dashboard');
+    setError('');
+    setLoading(true);
+    
+    try {
+      // Simulation d'une connexion réussie
+      login({
+        email: formData.email,
+        firstName: 'Jean',
+        lastName: 'Dupont',
+        role: formData.role
+      });
+      
+      // Redirection vers le tableau de bord correspondant au rôle
+      switch(formData.role) {
+        case ROLES.BOULANGER:
+          navigate('/boulanger/dashboard');
+          break;
+        case ROLES.COMMERCIAL:
+          navigate('/commercial/dashboard');
+          break;
+        case ROLES.APPROVISIONNEMENT:
+          navigate('/approvisionnement/dashboard');
+          break;
+        case ROLES.PREPARATION:
+          navigate('/preparation/dashboard');
+          break;
+        case ROLES.MAINTENANCE:
+          navigate('/maintenance/dashboard');
+          break;
+        default:
+          navigate('/');
+      }
+    } catch (err) {
+      setError('Échec de la connexion. Veuillez vérifier vos identifiants.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   /**
@@ -69,7 +101,19 @@ export default function Login() {
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
             Connexion à votre compte
           </h2>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            <Link to="/inscription" className="font-medium text-indigo-600 hover:text-indigo-500">
+              Créer un compte boulanger
+            </Link>
+          </p>
         </div>
+        
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+            <span className="block sm:inline">{error}</span>
+          </div>
+        )}
+        
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="rounded-md shadow-sm -space-y-px">
             <div>
@@ -107,19 +151,30 @@ export default function Login() {
                 value={formData.role}
                 onChange={handleChange}
               >
-                <option value="baker">Boulanger</option>
-                <option value="commercial">Commercial</option>
-                <option value="supply">Approvisionneur</option>
+                <option value={ROLES.BOULANGER}>Boulanger</option>
+                <option value={ROLES.COMMERCIAL}>Commercial</option>
+                <option value={ROLES.APPROVISIONNEMENT}>Approvisionnement</option>
+                <option value={ROLES.PREPARATION}>Préparation</option>
+                <option value={ROLES.MAINTENANCE}>Maintenance</option>
               </select>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="text-sm">
+              <a href="#" className="font-medium text-indigo-600 hover:text-indigo-500">
+                Mot de passe oublié?
+              </a>
             </div>
           </div>
 
           <div>
             <button
               type="submit"
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              disabled={loading}
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-300"
             >
-              Se connecter
+              {loading ? 'Connexion en cours...' : 'Se connecter'}
             </button>
           </div>
         </form>

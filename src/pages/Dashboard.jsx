@@ -13,7 +13,7 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, ROLES } from '../context/AuthContext';
 
 /**
  * Composant Dashboard
@@ -46,61 +46,136 @@ const Dashboard = () => {
     });
 
     // Modules spécifiques aux boulangers
-    if (user.role === 'baker') {
+    if (user.role === ROLES.BOULANGER) {
       modules.push(
         {
           name: 'Catalogue',
           description: 'Consultez les produits disponibles',
           icon: '🍞',
-          path: '/products',
+          path: '/boulanger/produits',
           color: 'bg-yellow-500'
         },
         {
           name: 'Devis',
           description: 'Gérez vos demandes de devis',
           icon: '📝',
-          path: '/quotes',
+          path: '/boulanger/devis',
           color: 'bg-green-500'
+        },
+        {
+          name: 'Commandes',
+          description: 'Suivez vos commandes en cours',
+          icon: '🛒',
+          path: '/boulanger/commandes',
+          color: 'bg-indigo-500'
         }
       );
     }
 
     // Modules spécifiques aux commerciaux
-    if (user.role === 'commercial') {
+    if (user.role === ROLES.COMMERCIAL) {
       modules.push(
         {
           name: 'Produits',
           description: 'Gérez le catalogue produits',
           icon: '📦',
-          path: '/products',
+          path: '/commercial/produits',
           color: 'bg-purple-500'
         },
         {
           name: 'Devis',
           description: 'Traitez les demandes de devis',
           icon: '📋',
-          path: '/quotes',
+          path: '/commercial/devis',
           color: 'bg-indigo-500'
+        },
+        {
+          name: 'Clients',
+          description: 'Gérez vos clients boulangers',
+          icon: '👥',
+          path: '/commercial/clients',
+          color: 'bg-green-500'
         }
       );
     }
 
     // Modules spécifiques aux approvisionneurs
-    if (user.role === 'supply') {
+    if (user.role === ROLES.APPROVISIONNEMENT) {
       modules.push(
         {
           name: 'Stocks',
           description: 'Gérez les stocks et approvisionnements',
           icon: '🏭',
-          path: '/products',
+          path: '/approvisionnement/stocks',
           color: 'bg-orange-500'
         },
         {
           name: 'Transport',
           description: 'Planifiez les livraisons',
           icon: '🚚',
-          path: '/transport',
+          path: '/approvisionnement/livraisons',
+          color: 'bg-yellow-500'
+        },
+        {
+          name: 'Réception',
+          description: 'Réceptionnez les commandes',
+          icon: '📦',
+          path: '/approvisionnement/reception-commande',
+          color: 'bg-green-500'
+        }
+      );
+    }
+
+    // Modules spécifiques à la préparation
+    if (user.role === ROLES.PREPARATION) {
+      modules.push(
+        {
+          name: 'Commandes',
+          description: 'Commandes à préparer',
+          icon: '📋',
+          path: '/preparation/commandes',
+          color: 'bg-indigo-500'
+        },
+        {
+          name: 'Bons de livraison',
+          description: 'Générez les bons de livraison',
+          icon: '📄',
+          path: '/preparation/bons-livraison',
+          color: 'bg-green-500'
+        },
+        {
+          name: 'QR Codes',
+          description: 'Générez des QR codes pour les palettes',
+          icon: '📱',
+          path: '/preparation/qr-code',
+          color: 'bg-purple-500'
+        }
+      );
+    }
+
+    // Modules spécifiques à la maintenance
+    if (user.role === ROLES.MAINTENANCE) {
+      modules.push(
+        {
+          name: 'Cuves',
+          description: 'Suivi du nettoyage des cuves',
+          icon: '🧹',
+          path: '/maintenance/cuves',
+          color: 'bg-yellow-500'
+        },
+        {
+          name: 'Véhicules',
+          description: 'Maintenance des camions',
+          icon: '🚛',
+          path: '/maintenance/camions',
           color: 'bg-red-500'
+        },
+        {
+          name: 'Indicateurs',
+          description: 'Indicateurs de maintenance',
+          icon: '📈',
+          path: '/maintenance/indicateurs',
+          color: 'bg-blue-500'
         }
       );
     }
@@ -125,9 +200,12 @@ const Dashboard = () => {
         </h1>
         <p className="text-gray-600 mt-1">
           Bienvenue sur votre tableau de bord {
-            user?.role === 'baker' ? 'boulanger' :
-            user?.role === 'commercial' ? 'commercial' :
-            'approvisionneur'
+            user?.role === ROLES.BOULANGER ? 'boulanger' :
+            user?.role === ROLES.COMMERCIAL ? 'commercial' :
+            user?.role === ROLES.APPROVISIONNEMENT ? 'approvisionneur' :
+            user?.role === ROLES.PREPARATION ? 'préparation' :
+            user?.role === ROLES.MAINTENANCE ? 'maintenance' :
+            ''
           }
         </p>
       </div>
@@ -153,30 +231,39 @@ const Dashboard = () => {
       <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white rounded-lg shadow p-6">
           <div className="text-sm font-medium text-gray-500 mb-1">
-            {user?.role === 'baker' ? 'Commandes en cours' :
-             user?.role === 'commercial' ? 'Devis à traiter' :
-             'Livraisons du jour'}
+            {user?.role === ROLES.BOULANGER ? 'Commandes en cours' :
+             user?.role === ROLES.COMMERCIAL ? 'Devis à traiter' :
+             user?.role === ROLES.APPROVISIONNEMENT ? 'Livraisons du jour' :
+             user?.role === ROLES.PREPARATION ? 'Commandes à préparer' :
+             user?.role === ROLES.MAINTENANCE ? 'Interventions à planifier' :
+             ''}
           </div>
           <div className="text-3xl font-bold text-gray-900">0</div>
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">
           <div className="text-sm font-medium text-gray-500 mb-1">
-            {user?.role === 'baker' ? 'Devis en attente' :
-             user?.role === 'commercial' ? 'Nouveaux clients' :
-             'Stocks à surveiller'}
+            {user?.role === ROLES.BOULANGER ? 'Devis en attente' :
+             user?.role === ROLES.COMMERCIAL ? 'Nouveaux clients' :
+             user?.role === ROLES.APPROVISIONNEMENT ? 'Stocks à surveiller' :
+             user?.role === ROLES.PREPARATION ? 'Bons de livraison à générer' :
+             user?.role === ROLES.MAINTENANCE ? 'Équipements à entretenir' :
+             ''}
           </div>
           <div className="text-3xl font-bold text-gray-900">0</div>
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">
           <div className="text-sm font-medium text-gray-500 mb-1">
-            {user?.role === 'baker' ? 'Total commandes' :
-             user?.role === 'commercial' ? 'Chiffre d\'affaires' :
-             'Taux de livraison'}
+            {user?.role === ROLES.BOULANGER ? 'Total commandes' :
+             user?.role === ROLES.COMMERCIAL ? 'Chiffre d\'affaires' :
+             user?.role === ROLES.APPROVISIONNEMENT ? 'Taux de livraison' :
+             user?.role === ROLES.PREPARATION ? 'Commandes préparées' :
+             user?.role === ROLES.MAINTENANCE ? 'Interventions effectuées' :
+             ''}
           </div>
           <div className="text-3xl font-bold text-gray-900">
-            {user?.role === 'commercial' ? '0 €' : '0'}
+            {user?.role === ROLES.COMMERCIAL ? '0 €' : '0'}
           </div>
         </div>
       </div>
