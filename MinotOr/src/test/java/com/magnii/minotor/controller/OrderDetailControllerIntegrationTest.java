@@ -19,6 +19,7 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.HashSet;
 
 import static org.hamcrest.Matchers.is;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -48,8 +49,7 @@ public class OrderDetailControllerIntegrationTest {
         productRepository.deleteAll();
         userRepository.deleteAll();
 
-        User user = new User(null, "testuser", "password", "user@example.com", "123 Test St", null);
-        user = userRepository.save(user);
+        User user = new User(null, "testuser", "password", "user@example.com", "123 Test St", new HashSet<>(), new HashSet<>());
         userId = user.getId();
 
         Order order = new Order();
