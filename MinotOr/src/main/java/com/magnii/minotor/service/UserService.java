@@ -11,34 +11,40 @@ import java.util.Optional;
 
 @Service
 public class UserService {
-    // We have updated the old user code to be capable of adding the password hashing using the passwrod encoder provided by spring
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-    // Constructor injection for userRepository and passwordEncoder.
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public UserService(UserRepository userRepository,
+                       PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
     @Transactional
     public void saveUser(User user) {
-        // Hash the plain-text password before saving.
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         userRepository.save(user);
     }
 
+    /** Returns Optional<User> directly, no double‐wrapping */
     public Optional<User> getUserByUsername(String username) {
-        return Optional.ofNullable(userRepository.findByUsername(username));
+        return userRepository.findByUsername(username);
     }
 
     public List<User> getUsers() {
         return userRepository.findAll();
     }
 
+    /** Delete by entity */
     @Transactional
     public void deleteUser(User user) {
         userRepository.delete(user);
+    }
+
+    /** Or delete by id */
+    @Transactional
+    public void deleteUserById(Long id) {
+        userRepository.deleteById(id);
     }
 }

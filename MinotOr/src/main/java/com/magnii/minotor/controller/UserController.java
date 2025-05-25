@@ -25,8 +25,7 @@ public class UserController {
 
     @GetMapping
     public ResponseEntity<List<UserDTO>> getAllUsers() {
-        List<UserDTO> users = userService.getUsers()
-                .stream()
+        List<UserDTO> users = userService.getUsers().stream()
                 .map(userMapper::toDto)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(users);
@@ -34,8 +33,10 @@ public class UserController {
 
     @GetMapping("/{username}")
     public ResponseEntity<UserDTO> getUserByUsername(@PathVariable String username) {
+        // Expect a single Optional<User> now:
         Optional<User> userOpt = userService.getUserByUsername(username);
-        return userOpt.map(user -> ResponseEntity.ok(userMapper.toDto(user)))
+        return userOpt
+                .map(user -> ResponseEntity.ok(userMapper.toDto(user)))
                 .orElse(ResponseEntity.notFound().build());
     }
 

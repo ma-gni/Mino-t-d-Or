@@ -1,4 +1,4 @@
-package com.magnii.minotor.controller;
+package com.magnii.minotor.Integration;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.magnii.minotor.model.User;

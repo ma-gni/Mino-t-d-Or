@@ -1,10 +1,9 @@
-package com.magnii.minotor;
+package com.magnii.minotor.service;
 
 import com.magnii.minotor.dto.PaymentDTO;
 import com.magnii.minotor.mapper.PaymentMapper;
 import com.magnii.minotor.model.Payment;
 import com.magnii.minotor.repository.PaymentRepository;
-import com.magnii.minotor.service.PaymentService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

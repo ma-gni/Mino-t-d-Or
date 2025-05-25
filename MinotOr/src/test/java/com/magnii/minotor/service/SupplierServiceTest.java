@@ -1,10 +1,9 @@
-package com.magnii.minotor;
+package com.magnii.minotor.service;
 
 import com.magnii.minotor.dto.SupplierDTO;
 import com.magnii.minotor.mapper.SupplierMapper;
 import com.magnii.minotor.model.Supplier;
 import com.magnii.minotor.repository.SupplierRepository;
-import com.magnii.minotor.service.SupplierService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

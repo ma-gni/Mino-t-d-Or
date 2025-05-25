@@ -1,8 +1,7 @@
-package com.magnii.minotor;
+package com.magnii.minotor.service;
 
 import com.magnii.minotor.model.User;
 import com.magnii.minotor.repository.UserRepository;
-import com.magnii.minotor.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -33,11 +32,26 @@ public class UserServiceTest {
         user.setPassword("hashedpassword");
         user.setAddress("123 Test St");
 
-        when(userRepository.findByUsername(username)).thenReturn(user);
+        when(userRepository.findByUsername(username))
+                .thenReturn(Optional.of(user));
 
+        // Now returns Optional<User>
         Optional<User> result = userService.getUserByUsername(username);
+
         assertTrue(result.isPresent());
         assertEquals(username, result.get().getUsername());
+        verify(userRepository, times(1)).findByUsername(username);
+    }
+
+    @Test
+    public void testGetUserByUsername_NotFound() {
+        String username = "unknown";
+        when(userRepository.findByUsername(username))
+                .thenReturn(Optional.empty());
+
+        Optional<User> result = userService.getUserByUsername(username);
+
+        assertFalse(result.isPresent());
         verify(userRepository, times(1)).findByUsername(username);
     }
 }

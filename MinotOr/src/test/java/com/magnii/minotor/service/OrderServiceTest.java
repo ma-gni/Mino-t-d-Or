@@ -1,11 +1,10 @@
-package com.magnii.minotor;
+package com.magnii.minotor.service;
 
 import com.magnii.minotor.dto.OrderDTO;
 import com.magnii.minotor.mapper.OrderMapper;
 import com.magnii.minotor.model.Order;
 import com.magnii.minotor.model.Order.OrderStatus;
 import com.magnii.minotor.repository.OrderRepository;
-import com.magnii.minotor.service.OrderService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

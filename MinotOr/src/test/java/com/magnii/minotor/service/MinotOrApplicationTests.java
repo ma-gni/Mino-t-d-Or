@@ -1,4 +1,4 @@
-package com.magnii.minotor;
+package com.magnii.minotor.service;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;

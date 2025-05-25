@@ -1,10 +1,9 @@
-package com.magnii.minotor;
+package com.magnii.minotor.service;
 
 import com.magnii.minotor.dto.FeedbackDTO;
 import com.magnii.minotor.mapper.FeedbackMapper;
 import com.magnii.minotor.model.Feedback;
 import com.magnii.minotor.repository.FeedbackRepository;
-import com.magnii.minotor.service.FeedbackService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

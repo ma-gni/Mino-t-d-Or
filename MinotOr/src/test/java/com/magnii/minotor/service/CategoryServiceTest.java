@@ -1,10 +1,9 @@
-package com.magnii.minotor;
+package com.magnii.minotor.service;
 
 import com.magnii.minotor.dto.CategoryDTO;
 import com.magnii.minotor.mapper.CategoryMapper;
 import com.magnii.minotor.model.Category;
 import com.magnii.minotor.repository.CategoryRepository;
-import com.magnii.minotor.service.CategoryService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

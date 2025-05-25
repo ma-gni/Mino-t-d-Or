@@ -1,10 +1,9 @@
-package com.magnii.minotor;
+package com.magnii.minotor.service;
 
 import com.magnii.minotor.dto.WarehouseDTO;
 import com.magnii.minotor.mapper.WarehouseMapper;
 import com.magnii.minotor.model.Warehouse;
 import com.magnii.minotor.repository.WarehouseRepository;
-import com.magnii.minotor.service.WarehouseService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
