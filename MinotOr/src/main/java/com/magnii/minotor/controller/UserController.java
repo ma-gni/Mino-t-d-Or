@@ -7,8 +7,8 @@ import com.magnii.minotor.service.UserService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URI;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @RestController
@@ -18,7 +18,8 @@ public class UserController {
     private final UserService userService;
     private final UserMapper userMapper;
 
-    public UserController(UserService userService, UserMapper userMapper) {
+    public UserController(UserService userService,
+                          UserMapper userMapper) {
         this.userService = userService;
         this.userMapper = userMapper;
     }
@@ -33,26 +34,27 @@ public class UserController {
 
     @GetMapping("/{username}")
     public ResponseEntity<UserDTO> getUserByUsername(@PathVariable String username) {
-        // Expect a single Optional<User> now:
-        Optional<User> userOpt = userService.getUserByUsername(username);
-        return userOpt
-                .map(user -> ResponseEntity.ok(userMapper.toDto(user)))
+        return userService.getUserByUsername(username)
+                .map(userMapper::toDto)
+                .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping
-    public ResponseEntity<Void> createUser(@RequestBody User user) {
-        userService.saveUser(user);
-        return ResponseEntity.status(201).build();
+    public ResponseEntity<UserDTO> createUser(@RequestBody User user) {
+        User saved = userService.saveUser(user);
+        UserDTO dto = userMapper.toDto(saved);
+        URI location = URI.create("/api/users/" + dto.getUsername());
+        return ResponseEntity
+                .created(location)
+                .body(dto);
     }
 
     @DeleteMapping("/{username}")
     public ResponseEntity<Void> deleteUser(@PathVariable String username) {
-        Optional<User> userOpt = userService.getUserByUsername(username);
-        if (userOpt.isPresent()) {
-            userService.deleteUser(userOpt.get());
-            return ResponseEntity.ok().build();
-        }
-        return ResponseEntity.notFound().build();
+        boolean deleted = userService.deleteUserByUsername(username);
+        return deleted
+                ? ResponseEntity.ok().build()
+                : ResponseEntity.notFound().build();
     }
 }

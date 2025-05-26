@@ -11,109 +11,144 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
 @AutoConfigureMockMvc(addFilters = false)
-public class SupplierControllerIntegrationTest {
+class SupplierControllerIntegrationTest {
 
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private SupplierRepository supplierRepository;
-
-    @Autowired
-    private ObjectMapper objectMapper;
+    @Autowired MockMvc mockMvc;
+    @Autowired SupplierRepository repo;
+    @Autowired ObjectMapper json;
 
     @BeforeEach
-    void setUp() {
-        supplierRepository.deleteAll();
+    void cleanUp() {
+        repo.deleteAll();
     }
 
     @Test
-    void testCreateSupplier() throws Exception {
+    void createAndRetrieveAndListAndDelete_andVerifyPersistence() throws Exception {
+        // create
         SupplierDTO dto = new SupplierDTO();
-        dto.setName("New Supplier");
-        dto.setContactInfo("contact@example.com");
+        dto.setName("Acme");
+        dto.setContactInfo("acme@example.com");
+
+        String body = mockMvc.perform(post("/api/suppliers")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(dto)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").isNumber())
+                .andExpect(jsonPath("$.name").value("Acme"))
+                .andExpect(jsonPath("$.contactInfo").value("acme@example.com"))
+                .andReturn().getResponse().getContentAsString();
+
+        SupplierDTO created = json.readValue(body, SupplierDTO.class);
+        Long id = created.getId();
+
+        // get by id
+        mockMvc.perform(get("/api/suppliers/{id}", id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(id))
+                .andExpect(jsonPath("$.name").value("Acme"));
+
+        // get all
+        mockMvc.perform(get("/api/suppliers"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(id))
+                .andExpect(jsonPath("$[0].name").value("Acme"));
+
+        // update
+        created.setName("Acme Corp");
+        created.setContactInfo("corp@acme.com");
+        mockMvc.perform(put("/api/suppliers/{id}", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(created)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Acme Corp"))
+                .andExpect(jsonPath("$.contactInfo").value("corp@acme.com"));
+
+        // delete
+        mockMvc.perform(delete("/api/suppliers/{id}", id))
+                .andExpect(status().isNoContent());
+
+        assertThat(repo.findById(id)).isEmpty();
+    }
+
+    //–– create validation errors ––//
+
+    @Test
+    void create_withBlankName_shouldReturn400() throws Exception {
+        SupplierDTO bad = new SupplierDTO();
+        bad.setName("");                 // blank
+        bad.setContactInfo("foo@bar");
 
         mockMvc.perform(post("/api/suppliers")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").exists())
-                .andExpect(jsonPath("$.name").value("New Supplier"))
-                .andExpect(jsonPath("$.contactInfo").value("contact@example.com"));
-
-        assertThat(supplierRepository.findAll()).hasSize(1);
+                        .content(json.writeValueAsString(bad)))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
-    void testGetSupplierById() throws Exception {
-        SupplierDTO dto = new SupplierDTO();
-        dto.setName("Test Supplier");
-        dto.setContactInfo("test@example.com");
+    void create_withNullContactInfo_shouldReturn400() throws Exception {
+        SupplierDTO bad = new SupplierDTO();
+        bad.setName("Foo");
+        // contactInfo null
 
-        String response = mockMvc.perform(post("/api/suppliers")
+        mockMvc.perform(post("/api/suppliers")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(dto)))
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
+                        .content(json.writeValueAsString(bad)))
+                .andExpect(status().isBadRequest());
+    }
 
-        SupplierDTO created = objectMapper.readValue(response, SupplierDTO.class);
+    //–– non‐existent resources ––//
 
-        mockMvc.perform(get("/api/suppliers/" + created.getId()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("Test Supplier"))
-                .andExpect(jsonPath("$.contactInfo").value("test@example.com"));
+    @Test
+    void get_nonExistentId_shouldReturn404() throws Exception {
+        mockMvc.perform(get("/api/suppliers/{id}", 999L))
+                .andExpect(status().isNotFound());
     }
 
     @Test
-    void testUpdateSupplier() throws Exception {
+    void update_nonExistentId_shouldReturn404() throws Exception {
         SupplierDTO dto = new SupplierDTO();
-        dto.setName("Old Supplier");
-        dto.setContactInfo("old@example.com");
-
-        String response = mockMvc.perform(post("/api/suppliers")
+        dto.setName("X");
+        dto.setContactInfo("x@x");
+        mockMvc.perform(put("/api/suppliers/{id}", 999L)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(dto)))
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
-
-        SupplierDTO created = objectMapper.readValue(response, SupplierDTO.class);
-        created.setName("Updated Supplier");
-        created.setContactInfo("updated@example.com");
-
-        mockMvc.perform(put("/api/suppliers/" + created.getId())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(created)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("Updated Supplier"))
-                .andExpect(jsonPath("$.contactInfo").value("updated@example.com"));
+                        .content(json.writeValueAsString(dto)))
+                .andExpect(status().isNotFound());
     }
 
     @Test
-    void testDeleteSupplier() throws Exception {
+    void delete_nonExistentId_shouldReturn404() throws Exception {
+        mockMvc.perform(delete("/api/suppliers/{id}", 999L))
+                .andExpect(status().isNotFound());
+    }
+
+    //–– update validation error ––//
+
+    @Test
+    void update_withBlankName_shouldReturn400() throws Exception {
+        // first create a valid
         SupplierDTO dto = new SupplierDTO();
-        dto.setName("To Be Deleted");
-        dto.setContactInfo("delete@example.com");
-
-        String response = mockMvc.perform(post("/api/suppliers")
+        dto.setName("Valid");
+        dto.setContactInfo("v@v");
+        String resp = mockMvc.perform(post("/api/suppliers")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(dto)))
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
+                        .content(json.writeValueAsString(dto)))
+                .andReturn().getResponse().getContentAsString();
 
-        SupplierDTO created = objectMapper.readValue(response, SupplierDTO.class);
+        SupplierDTO created = json.readValue(resp, SupplierDTO.class);
 
-        mockMvc.perform(delete("/api/suppliers/" + created.getId()))
-                .andExpect(status().isNoContent());
-
-        assertThat(supplierRepository.findById(created.getId())).isEmpty();
+        // now send bad update
+        created.setName("");
+        mockMvc.perform(put("/api/suppliers/{id}", created.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(created)))
+                .andExpect(status().isBadRequest());
     }
 }

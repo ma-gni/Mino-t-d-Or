@@ -13,7 +13,6 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.UUID;
 
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -49,6 +48,7 @@ public class WarehouseControllerIntegrationTest {
 
     @Test
     public void testGetWarehouseById() throws Exception {
+        // First create one
         String response = mockMvc.perform(post("/api/warehouses")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(warehouseDTO)))
@@ -65,6 +65,7 @@ public class WarehouseControllerIntegrationTest {
 
     @Test
     public void testGetAllWarehouses() throws Exception {
+        // Ensure at least one exists
         mockMvc.perform(post("/api/warehouses")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(warehouseDTO)))
@@ -106,7 +107,37 @@ public class WarehouseControllerIntegrationTest {
         mockMvc.perform(delete("/api/warehouses/" + created.getId()))
                 .andExpect(status().isNoContent());
 
+        // Now 404 when fetching deleted
         mockMvc.perform(get("/api/warehouses/" + created.getId()))
                 .andExpect(status().is4xxClientError());
+    }
+
+    @Test
+    public void whenInvalidPayload_thenBadRequest() throws Exception {
+        // Missing name & location => @NotBlank kicks in
+        WarehouseDTO invalid = new WarehouseDTO();
+        mockMvc.perform(post("/api/warehouses")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalid)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    public void whenNotFound_thenNotFoundOnGetPutDelete() throws Exception {
+        long nonExistent = 9999L;
+
+        mockMvc.perform(get("/api/warehouses/" + nonExistent))
+                .andExpect(status().isNotFound());
+
+        WarehouseDTO update = new WarehouseDTO();
+        update.setName("Whatever");
+        update.setLocation("Nowhere");
+        mockMvc.perform(put("/api/warehouses/" + nonExistent)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(update)))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(delete("/api/warehouses/" + nonExistent))
+                .andExpect(status().isNotFound());
     }
 }

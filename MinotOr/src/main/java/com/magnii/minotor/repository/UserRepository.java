@@ -8,11 +8,7 @@ import java.util.Optional;
 
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
-
-    /** Used to check for duplicates during registration */
     boolean existsByUsername(String username);
-
-    /** Loads a user by username, returning an Optional so you can call orElseThrow(). */
     Optional<User> findByUsername(String username);
-
+    void deleteByUsername(String username);
 }

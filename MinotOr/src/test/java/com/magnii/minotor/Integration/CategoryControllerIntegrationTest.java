@@ -4,118 +4,218 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.magnii.minotor.dto.CategoryDTO;
 import com.magnii.minotor.repository.CategoryRepository;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithAnonymousUser;
 import org.springframework.security.test.context.support.WithMockUser;
-import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.MockMvc;
 
-import static org.hamcrest.Matchers.is;
+import java.util.List;
+
+import static org.hamcrest.Matchers.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@WithMockUser   // simulate an authenticated user
-public class CategoryControllerIntegrationTest {
+@WithMockUser            // authenticate by default
+class CategoryControllerIntegrationTest {
 
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    @Autowired
-    private CategoryRepository categoryRepository;
+    @Autowired private MockMvc mockMvc;
+    @Autowired private ObjectMapper objectMapper;
+    @Autowired private CategoryRepository categoryRepository;
 
     @BeforeEach
-    public void setup() {
+    void setUp() {
         categoryRepository.deleteAll();
     }
 
-    @Test
-    public void testCreateAndGetCategory() throws Exception {
-        CategoryDTO categoryDTO = new CategoryDTO();
-        categoryDTO.setName("Electronics");
-        categoryDTO.setDescription("Electronic devices");
-        String json = objectMapper.writeValueAsString(categoryDTO);
-
-        // Create (POST)
-        mockMvc.perform(post("/api/categories")
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(json))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name", is("Electronics")));
-
-        // Retrieve (GET all)
-        mockMvc.perform(get("/api/categories"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()", is(1)));
+    private CategoryDTO makeDto(String name, String desc) {
+        CategoryDTO dto = new CategoryDTO();
+        dto.setName(name);
+        dto.setDescription(desc);
+        return dto;
     }
 
-    @Test
-    public void testUpdateCategory() throws Exception {
-        // Create a category and capture its generated ID.
-        CategoryDTO categoryDTO = new CategoryDTO();
-        categoryDTO.setName("Books");
-        categoryDTO.setDescription("Reading materials");
-        String json = objectMapper.writeValueAsString(categoryDTO);
+    @Nested
+    @DisplayName("GET /api/categories")
+    class GetAll {
+        @Test @DisplayName("when none exist → empty list")
+        void whenNone_thenEmpty() throws Exception {
+            mockMvc.perform(get("/api/categories"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$", hasSize(0)));
+        }
 
-        MvcResult postResult = mockMvc.perform(post("/api/categories")
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(json))
-                .andExpect(status().isOk())
-                .andReturn();
+        @Test @DisplayName("when some exist → return them all")
+        void whenSome_thenReturn() throws Exception {
+            // seed two
+            List<CategoryDTO> seeded = List.of(
+                    makeDto("A", "a"),
+                    makeDto("B", "b")
+            );
+            for (CategoryDTO c : seeded) {
+                mockMvc.perform(post("/api/categories")
+                                .with(csrf())
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(c)))
+                        .andExpect(status().isOk());
+            }
 
-        String postResponse = postResult.getResponse().getContentAsString();
-        CategoryDTO createdCategory = objectMapper.readValue(postResponse, CategoryDTO.class);
-        Long createdId = createdCategory.getId();
-
-        // Update the category using the captured ID.
-        categoryDTO.setName("Updated Books");
-        categoryDTO.setDescription("Updated description");
-        String updateJson = objectMapper.writeValueAsString(categoryDTO);
-
-        mockMvc.perform(put("/api/categories/" + createdId)
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(updateJson))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name", is("Updated Books")));
+            mockMvc.perform(get("/api/categories"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$", hasSize(2)))
+                    .andExpect(jsonPath("$[*].name", containsInAnyOrder("A","B")));
+        }
     }
 
-    @Test
-    public void testDeleteCategory() throws Exception {
-        // Create a category and capture its ID.
-        CategoryDTO categoryDTO = new CategoryDTO();
-        categoryDTO.setName("Clothes");
-        categoryDTO.setDescription("Apparel");
-        String json = objectMapper.writeValueAsString(categoryDTO);
-        MvcResult postResult = mockMvc.perform(post("/api/categories")
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(json))
-                .andExpect(status().isOk())
-                .andReturn();
+    @Nested
+    @DisplayName("GET /api/categories/{id}")
+    class GetById {
+        @Test @DisplayName("existing id → 200 + body")
+        void existing() throws Exception {
+            CategoryDTO dto = makeDto("X","x");
+            String resp = mockMvc.perform(post("/api/categories")
+                            .with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(dto)))
+                    .andReturn().getResponse().getContentAsString();
+            Long id = objectMapper.readValue(resp, CategoryDTO.class).getId();
 
-        String postResponse = postResult.getResponse().getContentAsString();
-        CategoryDTO createdCategory = objectMapper.readValue(postResponse, CategoryDTO.class);
-        Long createdId = createdCategory.getId();
+            mockMvc.perform(get("/api/categories/{id}", id))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id", is(id.intValue())))
+                    .andExpect(jsonPath("$.name", is("X")));
+        }
 
-        // Delete the category with the captured ID.
-        mockMvc.perform(delete("/api/categories/" + createdId)
-                        .with(csrf()))
-                .andExpect(status().isNoContent());
+        @Test @DisplayName("nonexistent id → 404")
+        void nonExisting() throws Exception {
+            mockMvc.perform(get("/api/categories/{id}", 9999L))
+                    .andExpect(status().isNotFound());
+        }
+    }
 
-        // GET all should now return an empty list.
-        mockMvc.perform(get("/api/categories"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()", is(0)));
+    @Nested
+    @DisplayName("POST /api/categories")
+    class Create {
+        @Test @DisplayName("valid → 200 + created")
+        void valid() throws Exception {
+            CategoryDTO dto = makeDto("New","Desc");
+            mockMvc.perform(post("/api/categories")
+                            .with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(dto)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id", notNullValue()))
+                    .andExpect(jsonPath("$.name", is("New")))
+                    .andExpect(jsonPath("$.description", is("Desc")));
+        }
+
+        @Test @DisplayName("missing name → 400")
+        void missingName() throws Exception {
+            CategoryDTO bad = new CategoryDTO();
+            bad.setDescription("NoName");
+            mockMvc.perform(post("/api/categories")
+                            .with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(bad)))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test @WithAnonymousUser @DisplayName("anonymous → 401")
+        void anonymous() throws Exception {
+            CategoryDTO dto = makeDto("Anon","x");
+            mockMvc.perform(post("/api/categories")
+                            .with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(dto)))
+                    .andExpect(status().isUnauthorized());
+        }
+    }
+
+    @Nested
+    @DisplayName("PUT /api/categories/{id}")
+    class Update {
+        @Test @DisplayName("existing + valid → 200 + updated")
+        void existingValid() throws Exception {
+            String resp = mockMvc.perform(post("/api/categories")
+                            .with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(makeDto("Old","o"))))
+                    .andReturn().getResponse().getContentAsString();
+            CategoryDTO created = objectMapper.readValue(resp, CategoryDTO.class);
+
+            created.setName("Updated");
+            created.setDescription("u");
+            mockMvc.perform(put("/api/categories/{id}", created.getId())
+                            .with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(created)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.name", is("Updated")));
+        }
+
+        @Test @DisplayName("nonexistent → 404")
+        void nonExisting() throws Exception {
+            CategoryDTO dto = makeDto("Doesnt","x");
+            mockMvc.perform(put("/api/categories/{id}", 8888L)
+                            .with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(dto)))
+                    .andExpect(status().isNotFound());
+        }
+
+        @Test @DisplayName("invalid body → 400")
+        void invalidBody() throws Exception {
+            String resp = mockMvc.perform(post("/api/categories")
+                            .with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(makeDto("Toy","t"))))
+                    .andReturn().getResponse().getContentAsString();
+            Long id = objectMapper.readValue(resp, CategoryDTO.class).getId();
+
+            CategoryDTO bad = new CategoryDTO();
+            bad.setDescription("no name");
+            mockMvc.perform(put("/api/categories/{id}", id)
+                            .with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(bad)))
+                    .andExpect(status().isBadRequest());
+        }
+    }
+
+    @Nested
+    @DisplayName("DELETE /api/categories/{id}")
+    class Delete {
+        @Test @DisplayName("existing → 204")
+        void existing() throws Exception {
+            String resp = mockMvc.perform(post("/api/categories")
+                            .with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(makeDto("Del","d"))))
+                    .andReturn().getResponse().getContentAsString();
+            Long id = objectMapper.readValue(resp, CategoryDTO.class).getId();
+
+            mockMvc.perform(delete("/api/categories/{id}", id)
+                            .with(csrf()))
+                    .andExpect(status().isNoContent());
+
+            // now gone
+            mockMvc.perform(get("/api/categories/{id}", id))
+                    .andExpect(status().isNotFound());
+        }
+
+        @Test @DisplayName("nonexistent → 404")
+        void nonExisting() throws Exception {
+            mockMvc.perform(delete("/api/categories/{id}", 7777L)
+                            .with(csrf()))
+                    .andExpect(status().isNotFound());
+        }
     }
 }

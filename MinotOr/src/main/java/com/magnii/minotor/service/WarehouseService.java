@@ -4,9 +4,7 @@ import com.magnii.minotor.dto.WarehouseDTO;
 import com.magnii.minotor.mapper.WarehouseMapper;
 import com.magnii.minotor.model.Warehouse;
 import com.magnii.minotor.repository.WarehouseRepository;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -16,14 +14,14 @@ public class WarehouseService {
     private final WarehouseRepository warehouseRepository;
     private final WarehouseMapper warehouseMapper;
 
-    public WarehouseService(WarehouseRepository warehouseRepository, WarehouseMapper warehouseMapper) {
+    public WarehouseService(WarehouseRepository warehouseRepository,
+                            WarehouseMapper warehouseMapper) {
         this.warehouseRepository = warehouseRepository;
         this.warehouseMapper = warehouseMapper;
     }
 
     public List<WarehouseDTO> getAllWarehouses() {
-        List<Warehouse> warehouses = warehouseRepository.findAll();
-        return warehouseMapper.toDto(warehouses);
+        return warehouseMapper.toDto(warehouseRepository.findAll());
     }
 
     public WarehouseDTO getWarehouseById(Long id) {
@@ -33,26 +31,25 @@ public class WarehouseService {
     }
 
     public WarehouseDTO createWarehouse(WarehouseDTO warehouseDTO) {
-        Warehouse warehouse = warehouseMapper.toEntity(warehouseDTO);
-        warehouse = warehouseRepository.save(warehouse);
-        return warehouseMapper.toDto(warehouse);
+        Warehouse entity = warehouseMapper.toEntity(warehouseDTO);
+        return warehouseMapper.toDto(warehouseRepository.save(entity));
     }
 
     public WarehouseDTO updateWarehouse(Long id, WarehouseDTO warehouseDTO) {
-        Warehouse existingWarehouse = warehouseRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Warehouse not found with id: " + id));
-        existingWarehouse.setName(warehouseDTO.getName());
-        existingWarehouse.setLocation(warehouseDTO.getLocation());
-        // Update stocks if needed
-        Warehouse updatedWarehouse = warehouseRepository.save(existingWarehouse);
-        return warehouseMapper.toDto(updatedWarehouse);
-    }
-    public boolean deleteWarehouse(Long id) {
-        if (warehouseRepository.existsById(id)) {
-            warehouseRepository.deleteById(id);
-            return true;
-        }
-        return false;
+        return warehouseRepository.findById(id)
+                .map(existing -> {
+                    existing.setName(warehouseDTO.getName());
+                    existing.setLocation(warehouseDTO.getLocation());
+                    return warehouseMapper.toDto(warehouseRepository.save(existing));
+                })
+                .orElse(null);
     }
 
+    public boolean deleteWarehouse(Long id) {
+        if (!warehouseRepository.existsById(id)) {
+            return false;
+        }
+        warehouseRepository.deleteById(id);
+        return true;
+    }
 }

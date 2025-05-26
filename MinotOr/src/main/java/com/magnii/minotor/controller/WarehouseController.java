@@ -2,6 +2,7 @@ package com.magnii.minotor.controller;
 
 import com.magnii.minotor.dto.WarehouseDTO;
 import com.magnii.minotor.service.WarehouseService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,38 +18,45 @@ public class WarehouseController {
         this.warehouseService = warehouseService;
     }
 
-    // ✅ Get all warehouses
     @GetMapping
-    public ResponseEntity<List<WarehouseDTO>> getAllWarehouses(){
-        List<WarehouseDTO> warehouses = warehouseService.getAllWarehouses();
-        return ResponseEntity.ok(warehouses);
+    public ResponseEntity<List<WarehouseDTO>> getAllWarehouses() {
+        return ResponseEntity.ok(warehouseService.getAllWarehouses());
     }
 
-    // ✅ Get a warehouse by ID, return 404 if not found
     @GetMapping("/{id}")
-    public ResponseEntity<WarehouseDTO> getWarehouseById(@PathVariable Long id){
+    public ResponseEntity<WarehouseDTO> getWarehouseById(@PathVariable Long id) {
         WarehouseDTO dto = warehouseService.getWarehouseById(id);
-        return (dto != null) ? ResponseEntity.ok(dto) : ResponseEntity.notFound().build();
+        if (dto == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(dto);
     }
 
-    // ✅ Create new warehouse
     @PostMapping
-    public ResponseEntity<WarehouseDTO> createWarehouse(@RequestBody WarehouseDTO dto){
-        WarehouseDTO createdDto = warehouseService.createWarehouse(dto);
-        return ResponseEntity.ok(createdDto);
+    public ResponseEntity<WarehouseDTO> createWarehouse(
+            @Valid @RequestBody WarehouseDTO dto) {
+        WarehouseDTO created = warehouseService.createWarehouse(dto);
+        return ResponseEntity.ok(created);
     }
 
-    // ✅ Update warehouse, return 404 if not found
     @PutMapping("/{id}")
-    public ResponseEntity<WarehouseDTO> updateWarehouse(@PathVariable Long id, @RequestBody WarehouseDTO dto){
-        WarehouseDTO updatedDto = warehouseService.updateWarehouse(id, dto);
-        return (updatedDto != null) ? ResponseEntity.ok(updatedDto) : ResponseEntity.notFound().build();
+    public ResponseEntity<WarehouseDTO> updateWarehouse(
+            @PathVariable Long id,
+            @Valid @RequestBody WarehouseDTO dto) {
+
+        WarehouseDTO updated = warehouseService.updateWarehouse(id, dto);
+        if (updated == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(updated);
     }
 
-    // ✅ Delete warehouse
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteWarehouse(@PathVariable Long id){
+    public ResponseEntity<Void> deleteWarehouse(@PathVariable Long id) {
         boolean deleted = warehouseService.deleteWarehouse(id);
-        return deleted ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
+        if (!deleted) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.noContent().build();
     }
 }

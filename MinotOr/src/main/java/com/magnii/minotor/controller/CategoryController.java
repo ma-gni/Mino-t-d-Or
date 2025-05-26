@@ -2,6 +2,7 @@ package com.magnii.minotor.controller;
 
 import com.magnii.minotor.dto.CategoryDTO;
 import com.magnii.minotor.service.CategoryService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -30,15 +31,18 @@ public class CategoryController {
     }
 
     @PostMapping
-    public ResponseEntity<CategoryDTO> createCategory(@RequestBody CategoryDTO categoryDTO){
-        CategoryDTO createdCategory = categoryService.createCategory(categoryDTO);
-        return ResponseEntity.ok(createdCategory);
+    public ResponseEntity<CategoryDTO> createCategory(
+            @Valid @RequestBody CategoryDTO categoryDTO) {
+        CategoryDTO created = categoryService.createCategory(categoryDTO);
+        return ResponseEntity.ok(created);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<CategoryDTO> updateCategory(@PathVariable Long id, @RequestBody CategoryDTO categoryDTO){
-        CategoryDTO updatedCategory = categoryService.updateCategory(id, categoryDTO);
-        return ResponseEntity.ok(updatedCategory);
+    public ResponseEntity<CategoryDTO> updateCategory(
+            @PathVariable Long id,
+            @Valid @RequestBody CategoryDTO categoryDTO) {
+        CategoryDTO updated = categoryService.updateCategory(id, categoryDTO);
+        return ResponseEntity.ok(updated);
     }
 
     @DeleteMapping("/{id}")

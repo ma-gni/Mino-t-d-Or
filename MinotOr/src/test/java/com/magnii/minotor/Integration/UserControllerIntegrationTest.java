@@ -48,26 +48,33 @@ public class UserControllerIntegrationTest {
                         .with(httpBasic(uniqueUsername, "password123"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(user)))
-                .andExpect(status().isCreated());
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.username").value(uniqueUsername))
+                .andExpect(jsonPath("$.email").value("test@example.com"))
+                .andExpect(jsonPath("$.address").value("123 Main St"));
     }
 
     @Test
     public void testGetUserByUsername() throws Exception {
+        // First create the user
         mockMvc.perform(post("/api/users")
                         .with(httpBasic(uniqueUsername, "password123"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(user)))
                 .andExpect(status().isCreated());
 
+        // Then fetch by username
         mockMvc.perform(get("/api/users/" + uniqueUsername)
                         .with(httpBasic(uniqueUsername, "password123")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.username").value(uniqueUsername))
-                .andExpect(jsonPath("$.email").value("test@example.com"));
+                .andExpect(jsonPath("$.email").value("test@example.com"))
+                .andExpect(jsonPath("$.address").value("123 Main St"));
     }
 
     @Test
     public void testGetAllUsers() throws Exception {
+        // Ensure at least one user exists
         mockMvc.perform(post("/api/users")
                         .with(httpBasic(uniqueUsername, "password123"))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -82,16 +89,19 @@ public class UserControllerIntegrationTest {
 
     @Test
     public void testDeleteUser() throws Exception {
+        // Create
         mockMvc.perform(post("/api/users")
                         .with(httpBasic(uniqueUsername, "password123"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(user)))
                 .andExpect(status().isCreated());
 
+        // Delete
         mockMvc.perform(delete("/api/users/" + uniqueUsername)
                         .with(httpBasic(uniqueUsername, "password123")))
                 .andExpect(status().isOk());
 
+        // Then 404 when fetching deleted
         mockMvc.perform(get("/api/users/" + uniqueUsername)
                         .with(httpBasic(uniqueUsername, "password123")))
                 .andExpect(status().isNotFound());

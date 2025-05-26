@@ -2,47 +2,48 @@ package com.magnii.minotor.controller;
 
 import com.magnii.minotor.dto.PaymentDTO;
 import com.magnii.minotor.service.PaymentService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/payments")
+@Validated
 public class PaymentController {
 
     private final PaymentService paymentService;
 
-    public PaymentController(PaymentService paymentService){
+    public PaymentController(PaymentService paymentService) {
         this.paymentService = paymentService;
     }
 
     @GetMapping
-    public ResponseEntity<List<PaymentDTO>> getAllPayments(){
-        List<PaymentDTO> payments = paymentService.getAllPayments();
-        return ResponseEntity.ok(payments);
+    public ResponseEntity<List<PaymentDTO>> getAllPayments() {
+        return ResponseEntity.ok(paymentService.getAllPayments());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<PaymentDTO> getPaymentById(@PathVariable Long id){
-        PaymentDTO dto = paymentService.getPaymentById(id);
-        return ResponseEntity.ok(dto);
+    public ResponseEntity<PaymentDTO> getPaymentById(@PathVariable Long id) {
+        return ResponseEntity.ok(paymentService.getPaymentById(id));
     }
 
     @PostMapping
-    public ResponseEntity<PaymentDTO> createPayment(@RequestBody PaymentDTO dto){
-        PaymentDTO createdDto = paymentService.createPayment(dto);
-        return ResponseEntity.ok(createdDto);
+    public ResponseEntity<PaymentDTO> createPayment(@RequestBody @Valid PaymentDTO dto) {
+        return ResponseEntity.ok(paymentService.createPayment(dto));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<PaymentDTO> updatePayment(@PathVariable Long id, @RequestBody PaymentDTO dto){
-        PaymentDTO updatedDto = paymentService.updatePayment(id, dto);
-        return ResponseEntity.ok(updatedDto);
+    public ResponseEntity<PaymentDTO> updatePayment(
+            @PathVariable Long id,
+            @RequestBody @Valid PaymentDTO dto) {
+        return ResponseEntity.ok(paymentService.updatePayment(id, dto));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deletePayment(@PathVariable Long id){
+    public ResponseEntity<Void> deletePayment(@PathVariable Long id) {
         paymentService.deletePayment(id);
         return ResponseEntity.noContent().build();
     }

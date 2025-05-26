@@ -11,7 +11,6 @@ import java.util.Optional;
 
 @Service
 public class UserService {
-
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
@@ -22,12 +21,12 @@ public class UserService {
     }
 
     @Transactional
-    public void saveUser(User user) {
+    public User saveUser(User user) {
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         userRepository.save(user);
+        return user;
     }
 
-    /** Returns Optional<User> directly, no double‐wrapping */
     public Optional<User> getUserByUsername(String username) {
         return userRepository.findByUsername(username);
     }
@@ -36,15 +35,12 @@ public class UserService {
         return userRepository.findAll();
     }
 
-    /** Delete by entity */
     @Transactional
-    public void deleteUser(User user) {
-        userRepository.delete(user);
-    }
-
-    /** Or delete by id */
-    @Transactional
-    public void deleteUserById(Long id) {
-        userRepository.deleteById(id);
+    public boolean deleteUserByUsername(String username) {
+        if (!userRepository.existsByUsername(username)) {
+            return false;
+        }
+        userRepository.deleteByUsername(username);
+        return true;
     }
 }
