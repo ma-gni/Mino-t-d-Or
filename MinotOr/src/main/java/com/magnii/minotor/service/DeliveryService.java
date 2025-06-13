@@ -18,47 +18,66 @@ public class DeliveryService {
     private final DeliveryMapper deliveryMapper;
     private final OrderRepository orderRepository;
 
-    public DeliveryService(DeliveryRepository deliveryRepository, DeliveryMapper deliveryMapper, OrderRepository orderRepository) {
+    public DeliveryService(DeliveryRepository deliveryRepository,
+                           DeliveryMapper deliveryMapper,
+                           OrderRepository orderRepository) {
         this.deliveryRepository = deliveryRepository;
         this.deliveryMapper = deliveryMapper;
         this.orderRepository = orderRepository;
     }
-    public List<DeliveryDTO> getAllDeliveries() {
-        List<Delivery> deliveries = deliveryRepository.findAll();
-        return deliveryMapper.toDto(deliveries);
-    }
-    public DeliveryDTO getDeliveryById(long id) {
-        Delivery delivery = deliveryRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Delivery not found"));
-        return deliveryMapper.toDto(delivery);
-    }
-    public DeliveryDTO createDelivery(DeliveryDTO deliveryDTO) {
-        Delivery delivery = deliveryMapper.toEntity(deliveryDTO);
 
-        // Fetch and set the actual Order entity
-        Order order = orderRepository.findById(deliveryDTO.getOrderId())
-                .orElseThrow(() -> new RuntimeException("Order not found"));
+    public List<DeliveryDTO> getAllDeliveries() {
+        return deliveryMapper.toDto(deliveryRepository.findAll());
+    }
+
+    public DeliveryDTO getDeliveryById(long id) {
+        return deliveryRepository.findById(id)
+                .map(deliveryMapper::toDto)
+                .orElseThrow(() ->
+                        new ResponseStatusException(HttpStatus.NOT_FOUND, "Delivery not found")
+                );
+    }
+
+    public DeliveryDTO createDelivery(DeliveryDTO dto) {
+        // map DTO → entity (orderId still in dto)
+        Delivery delivery = deliveryMapper.toEntity(dto);
+
+        // lookup order or 404
+        Order order = orderRepository.findById(dto.getOrderId())
+                .orElseThrow(() ->
+                        new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found")
+                );
         delivery.setOrder(order);
 
-        deliveryRepository.save(delivery);
-        return deliveryMapper.toDto(delivery);
+        // persist
+        Delivery saved = deliveryRepository.save(delivery);
+        return deliveryMapper.toDto(saved);
     }
-    public DeliveryDTO updateDelivery(DeliveryDTO deliveryDTO) {
-        Delivery existingDelivery = deliveryRepository.findById(deliveryDTO.getId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Delivery not found"));
+
+    public DeliveryDTO updateDelivery(DeliveryDTO dto) {
+        Delivery existing = deliveryRepository.findById(dto.getId())
+                .orElseThrow(() ->
+                        new ResponseStatusException(HttpStatus.NOT_FOUND, "Delivery not found")
+                );
 
         try {
-            existingDelivery.setStatus(Delivery.DeliveryStatus.valueOf(deliveryDTO.getStatus()));
-        } catch (IllegalArgumentException e) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid delivery status: " + deliveryDTO.getStatus());
+            existing.setStatus(Delivery.DeliveryStatus.valueOf(dto.getStatus()));
+        } catch (IllegalArgumentException iae) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Invalid delivery status: " + dto.getStatus()
+            );
         }
-        existingDelivery.setAddress(deliveryDTO.getAddress());
 
-        Delivery updatedDelivery = deliveryRepository.save(existingDelivery);
-        return deliveryMapper.toDto(updatedDelivery);
+        existing.setAddress(dto.getAddress());
+        Delivery updated = deliveryRepository.save(existing);
+        return deliveryMapper.toDto(updated);
     }
 
     public void deleteDelivery(long id) {
+        if (!deliveryRepository.existsById(id)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Delivery not found");
+        }
         deliveryRepository.deleteById(id);
     }
 }
