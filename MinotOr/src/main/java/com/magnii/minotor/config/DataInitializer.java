@@ -17,7 +17,6 @@ public class DataInitializer {
         this.roleRepository = roleRepository;
     }
 
-    // List of roles to seed at startup
     private static final List<String> ROLE_NAMES = Arrays.asList(
             "ROLE_BOULANGER",
             "ROLE_COMMERCIAL",

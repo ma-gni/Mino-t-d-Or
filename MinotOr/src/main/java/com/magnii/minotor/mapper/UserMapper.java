@@ -7,9 +7,8 @@ import org.mapstruct.Mapping;
 
 import java.util.Optional;
 
-@Mapper(componentModel = "spring", uses = {OrderMapper.class})
-public interface UserMapper extends EntityMapper<UserDTO, User> {
-    @Mapping(target = "address", ignore = true)
-    @Mapping(target = "password", ignore = true)
-    UserDTO toDto(Optional<User> user);
+@Mapper(componentModel = "spring")
+public interface UserMapper {
+    UserDTO toDto(User user);
+    User toEntity(UserDTO dto);
 }

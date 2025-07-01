@@ -41,13 +41,12 @@ public class UserController {
     }
 
     @PostMapping
-    public ResponseEntity<UserDTO> createUser(@RequestBody User user) {
+    public ResponseEntity<UserDTO> createUser(@RequestBody UserDTO userDTO) {
+        User user = userMapper.toEntity(userDTO); // Convert DTO -> Entity
         User saved = userService.saveUser(user);
-        UserDTO dto = userMapper.toDto(saved);
+        UserDTO dto = userMapper.toDto(saved); // Convert back Entity -> DTO
         URI location = URI.create("/api/users/" + dto.getUsername());
-        return ResponseEntity
-                .created(location)
-                .body(dto);
+        return ResponseEntity.created(location).body(dto);
     }
 
     @DeleteMapping("/{username}")

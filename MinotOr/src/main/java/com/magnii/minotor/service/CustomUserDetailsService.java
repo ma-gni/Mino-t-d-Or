@@ -28,20 +28,19 @@ public class CustomUserDetailsService implements UserDetailsService {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
 
-        // 2) Prevent login if not activated
-        if (!user.isActivated()) {
-            throw new DisabledException("User not activated: " + username);
-        }
-
-        // 3) Map our roles (entities) to Spring Security authorities
+        // 2) Map roles to Spring Security authorities
         List<GrantedAuthority> authorities = user.getRoles().stream()
                 .map(role -> new SimpleGrantedAuthority(role.getName()))
                 .collect(Collectors.toList());
 
-        // 4) Return Spring’s UserDetails implementation
+        // 3) Return UserDetails with all account status flags
         return new org.springframework.security.core.userdetails.User(
                 user.getUsername(),
                 user.getPassword(),
+                user.isActivated(),   // enabled → from your DB
+                true,                 // accountNonExpired
+                true,                 // credentialsNonExpired
+                true,                 // accountNonLocked
                 authorities
         );
     }
