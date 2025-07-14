@@ -1,0 +1,12 @@
+/**
+ * Ce fichier est une solution pour résoudre les avertissements liés aux directives @tailwind et @apply
+ * Il ne modifie pas le comportement de l'application mais informe l'IDE de la syntaxe Tailwind
+ */
+
+/* Directive pour informer les IDE que ce fichier utilise la syntaxe Tailwind CSS */
+/* stylelint-disable */
+/* postcss-import: tailwindcss; */
+/* postcss-import: tailwindcss/components; */
+/* postcss-import: tailwindcss/utilities; */
+
+/* Fin du fichier */
