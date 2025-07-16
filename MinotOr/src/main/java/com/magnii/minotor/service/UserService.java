@@ -1,6 +1,8 @@
 package com.magnii.minotor.service;
 
+import com.magnii.minotor.model.Role;
 import com.magnii.minotor.model.User;
+import com.magnii.minotor.repository.RoleRepository;
 import com.magnii.minotor.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -13,11 +15,14 @@ import java.util.Optional;
 public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final RoleRepository roleRepository;
 
     public UserService(UserRepository userRepository,
-                       PasswordEncoder passwordEncoder) {
+                       PasswordEncoder passwordEncoder,
+                       RoleRepository roleRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.roleRepository = roleRepository;
     }
 
     @Transactional
@@ -42,5 +47,17 @@ public class UserService {
         }
         userRepository.deleteByUsername(username);
         return true;
+    }
+    @Transactional
+    public void assignRole(String username, String roleName) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+
+        Role role = roleRepository.findByName(roleName)
+                .orElseThrow(() -> new RuntimeException("Role not found"));
+
+        user.getRoles().add(role);
+        userRepository.save(user);
     }
 }

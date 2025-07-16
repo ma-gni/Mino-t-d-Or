@@ -34,7 +34,9 @@ public class StockService {
 
     public List<StockDTO> getAllStocks() {
         List<Stock> stocks = stockRepository.findAll();
-        return Collections.singletonList(stockMapper.toDto((Stock) stocks));
+        return stocks.stream()
+                .map(stockMapper::toDto)
+                .toList();
     }
 
     public StockDTO getStockById(Long id) {

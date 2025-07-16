@@ -12,6 +12,9 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.web.cors.CorsConfiguration;
+
+import java.util.List;
 
 @Configuration
 public class SecurityConfig {
@@ -24,7 +27,6 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        // Delegating encoder adds necessary prefixes like {bcrypt}
         return PasswordEncoderFactories.createDelegatingPasswordEncoder();
     }
 
@@ -36,19 +38,29 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
+                .cors(cors -> cors.configurationSource(request -> {
+                    CorsConfiguration corsConfig = new CorsConfiguration();
+                    corsConfig.setAllowedOrigins(List.of("http://localhost:3000"));
+                    corsConfig.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+                    corsConfig.setAllowedHeaders(List.of("*"));
+                    corsConfig.setAllowCredentials(true);
+                    return corsConfig;
+                }))
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Allow unauthenticated access to auth endpoints
-                        .requestMatchers("/api/auth/**").permitAll()
+                        // Allow login and registration
+                        .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
 
-                        // (Optional) Allow Swagger for development/testing if needed
+                        // 🔥 FIXED: Allow activation via ID path
+                        .requestMatchers(HttpMethod.PUT, "/api/auth/users/**").permitAll()
+
+                        // Swagger access
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
 
-                        // Protect other endpoints
+                        // Everything else requires auth
                         .anyRequest().authenticated()
                 )
-                // Add JWT filter before Spring Security's default username/password filter
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
