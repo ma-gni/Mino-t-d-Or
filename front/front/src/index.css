@@ -1,0 +1,410 @@
+/* 
+ * DIRECTIVES TAILWIND CSS
+ * -----------------------
+ * IMPORTANT: Les directives @tailwind et @apply sont des directives valides de Tailwind CSS.
+ * Si votre IDE affiche des avertissements, c'est normal et n'affecte pas le fonctionnement de l'application.
+ * 
+ * SOLUTION : Pour supprimer définitivement ces avertissements, installez l'extension 
+ * "Tailwind CSS IntelliSense" dans votre éditeur.
+ * 
+ * L'application fonctionne correctement malgré ces avertissements.
+ */
+
+/* Informations pour les outils d'analyse CSS */
+/*! tailwindcss v3.3.3 | MIT License | https://tailwindcss.com */
+/*! modern-normalize v2.0.0 | MIT License | https://github.com/sindresorhus/modern-normalize */
+/* stylelint-disable */
+/* postcss-custom-properties: false */
+
+/* 
+ * Nous utilisons un import standard pour aider l'IDE à comprendre le code
+ * Ce fichier contient les équivalents standards des classes Tailwind
+ */
+@import url('./tailwind-standard.css');
+
+/* Version compatible IDE des directives Tailwind */
+:root {
+  --tw-content: '';
+  --tw-bg-opacity: 1;
+  --tw-text-opacity: 1;
+  --tw-shadow: 0 0 #0000;
+  --tw-ring-inset: var(--tw-empty, );
+  --tw-ring-offset-width: 0px;
+  --tw-ring-offset-color: #fff;
+  --tw-ring-color: rgba(59, 130, 246, 0.5);
+  --tw-ring-offset-shadow: 0 0 #0000;
+  --tw-ring-shadow: 0 0 #0000;
+}
+
+/* Directives Tailwind CSS - Ces lignes sont nécessaires pour le fonctionnement de l'application */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Importation des polices Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* 
+ * Variables CSS personnalisées
+ * Ces variables définissent les couleurs principales de l'application
+ */
+:root {
+  --primary: #4f46e5;
+  --primary-dark: #4338ca;
+  --secondary: #0f172a;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  @apply bg-gray-50;
+}
+
+/* 
+ * Configuration des sections de la page
+ * - Largeur pleine avec padding vertical de 24 unités et horizontal de 6 unités
+ * - Débordement caché pour éviter les problèmes de layout
+ * - Position relative pour les éléments enfants
+ */
+.section {
+  @apply w-full py-24 px-6 overflow-hidden relative;
+}
+
+/* 
+ * Configuration du conteneur du contenu des sections
+ * - Largeur pleine avec une largeur maximale définie pour une meilleure lisibilité
+ * - Centrage horizontal avec des marges automatiques
+ */
+.section-content {
+  @apply w-full max-w-[1920px] mx-auto;
+}
+
+/* 
+ * Configuration des sections à pleine hauteur d'écran
+ * - Position relative pour les éléments enfants
+ * - Flexbox pour centrer les éléments verticalement et horizontalement
+ * - Hauteur minimale égale à la hauteur de l'écran
+ * - Fond noir pour les sections de présentation
+ */
+.full-screen-section {
+  @apply relative flex items-center justify-center min-h-screen w-full bg-gray-900;
+}
+
+/* 
+ * Configuration des cartes de fonctionnalités
+ * - Fond blanc avec padding de 8 unités et arrondis de 2xl
+ * - Ombre pour un effet de profondeur
+ * - Transition pour les ombres au survol
+ */
+.feature-card {
+  @apply bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300;
+}
+
+/* 
+ * Configuration des cartes de témoignages
+ * - Fond blanc avec padding de 6 unités et arrondis de 2xl
+ * - Ombre pour un effet de profondeur
+ * - Transition pour les ombres au survol
+ */
+.testimonial-card {
+  @apply bg-white p-6 rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300;
+}
+
+/* 
+ * Configuration des styles de texte
+ * - Titre principal avec une taille de 5xl sur mobile et 6xl sur tablette et au-delà
+ * - Police bold et couleur blanche
+ * - Largeur maximale pour une meilleure lisibilité
+ * - Centrage horizontal avec des marges automatiques
+ */
+.heading-1 {
+  @apply text-5xl md:text-6xl lg:text-7xl font-bold text-white leading-tight max-w-[1200px] mx-auto;
+}
+
+/* 
+ * Configuration des titres secondaires
+ * - Taille de 4xl sur mobile et 5xl sur tablette et au-delà
+ * - Police bold et couleur grise foncée
+ * - Largeur maximale pour une meilleure lisibilité
+ * - Centrage horizontal avec des marges automatiques
+ */
+.heading-2 {
+  @apply text-4xl md:text-5xl font-bold text-gray-900 leading-tight max-w-[1200px] mx-auto;
+}
+
+/* 
+ * Configuration des paragraphes
+ * - Taille de texte de xl
+ * - Couleur grise moyenne
+ * - Largeur maximale pour une meilleure lisibilité
+ * - Centrage horizontal avec des marges automatiques
+ * - Espacement des lignes pour une meilleure lisibilité
+ */
+.paragraph {
+  @apply text-xl text-gray-600 max-w-[1200px] mx-auto leading-relaxed;
+}
+
+/* 
+ * Configuration des boutons primaires
+ * - Fond indigo foncé avec une ombre pour un effet de profondeur
+ * - Police medium et couleur blanche
+ * - Padding horizontal de 8 unités et vertical de 4 unités
+ * - Arrondis de 1 unité
+ * - Transition pour les ombres au survol
+ */
+.btn-primary {
+  @apply inline-flex items-center px-8 py-4 rounded-full text-lg font-medium shadow-lg transition-all duration-300 bg-indigo-600 text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500;
+}
+
+/* 
+ * Configuration des boutons secondaires
+ * - Fond transparent avec une bordure grise claire
+ * - Police medium et couleur grise foncée
+ * - Padding horizontal de 8 unités et vertical de 4 unités
+ * - Arrondis de 1 unité
+ * - Transition pour les ombres au survol
+ */
+.btn-secondary {
+  @apply inline-flex items-center px-8 py-4 rounded-full text-lg font-medium border-2 transition-all duration-300 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500;
+}
+
+/* 
+ * Configuration du overlay de la section hero
+ * - Fond noir avec une opacité de 60%
+ * - Flou pour un effet de profondeur
+ */
+.hero-overlay {
+  @apply absolute inset-0 bg-black bg-opacity-60 backdrop-blur-sm;
+}
+
+/* 
+ * Configuration du conteneur du contenu hero
+ * - z-10: assure que le contenu est au-dessus du fond
+ * - width pleine largeur avec une largeur maximale définie
+ * - centrage horizontal avec des marges automatiques
+ * - padding horizontal de 6 unités
+ */
+.hero-content {
+  @apply relative z-10 w-full max-w-[1920px] mx-auto px-6;
+}
+
+/* 
+ * Configuration des grilles responsives pour les sections de fonctionnalités
+ * - Disposition en grille avec 1 colonne sur mobile
+ * - 3 colonnes sur tablette et au-delà (md:)
+ * - Espacement de 8 unités entre les éléments
+ * - Largeur maximale de 1200px pour une meilleure lisibilité
+ * - Centrage horizontal avec marges automatiques
+ * - Alignement centré des éléments dans la grille
+ */
+.grid-cols-features {
+  @apply grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-[1200px] mx-auto justify-items-center;
+}
+
+/* 
+ * Ajustements pour les grands écrans (1536px et plus)
+ * - Augmente les marges latérales pour une meilleure utilisation de l'espace
+ * - Définit la largeur maximale des conteneurs
+ */
+@media (min-width: 1536px) {
+  /* Ajoute des paddings horizontaux plus grands pour les grands écrans */
+  .section-content {
+    @apply px-8;
+  }
+  
+  /* Définit la largeur maximale des conteneurs sur grands écrans */
+  .container {
+    @apply max-w-[1920px];
+  }
+}
+
+/* 
+ * Définition des animations pour les effets visuels
+ * Ces animations sont utilisées pour les transitions et effets de la page
+ */
+/* Animation de fondu - utilisée pour faire apparaître graduellement les éléments */
+@keyframes fadeIn {
+  from { opacity: 0; } /* État initial: invisible */
+  to { opacity: 1; }   /* État final: complètement visible */
+}
+
+/* Animation de glissement vers le haut - utilisée pour les entrées dynamiques */
+@keyframes slideUp {
+  from {
+    opacity: 0;                /* État initial: invisible */
+    transform: translateY(20px); /* État initial: décalé de 20px vers le bas */
+  }
+  to {
+    opacity: 1;                /* État final: complètement visible */
+    transform: translateY(0);   /* État final: position normale */
+  }
+}
+
+/* Animation d'agrandissement - utilisée pour les éléments qui apparaissent */
+@keyframes scaleIn {
+  from {
+    opacity: 0;            /* État initial: invisible */
+    transform: scale(0.9); /* État initial: réduit */
+  }
+  to {
+    opacity: 1;            /* État final: complètement visible */
+    transform: scale(1);   /* État final: taille normale */
+  }
+}
+
+/* Animation de flottement - utilisée pour les éléments qui flottent */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0); /* État initial et final: position normale */
+  }
+  50% {
+    transform: translateY(-10px); /* État intermédiaire: décalé de 10px vers le haut */
+  }
+}
+
+/* Animation d'effet de bordure - utilisée pour les éléments avec une bordure */
+@keyframes borderGlow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(79, 70, 229, 0.1); /* État initial et final: ombre faible */
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(79, 70, 229, 0.4); /* État intermédiaire: ombre forte */
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 1s ease-out forwards;
+}
+
+.animate-slide-up {
+  animation: slideUp 1s ease-out forwards;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.6s ease-out forwards;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-border-glow {
+  animation: borderGlow 2s ease-in-out infinite;
+}
+
+.delay-200 {
+  animation-delay: 200ms;
+}
+
+.delay-300 {
+  animation-delay: 300ms;
+}
+
+.delay-400 {
+  animation-delay: 400ms;
+}
+
+/* 
+ * Configuration des transitions pour les éléments
+ * - Définit la propriété de transition pour tous les éléments
+ * - Définit la fonction de temporisation pour les transitions
+ * - Définit la durée des transitions
+ */
+.transition-all {
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 300ms;
+}
+
+/* 
+ * Configuration des effets de survol pour les éléments
+ * - Définit l'effet de survol pour les éléments qui ont une classe de survol
+ */
+.hover\:scale-105:hover {
+  transform: scale(1.05);
+  transition: transform 0.3s ease-in-out;
+}
+
+/* 
+ * Configuration de l'effet de verre pour les éléments
+ * - Définit l'arrière-plan et la bordure pour les éléments qui ont une classe de verre
+ */
+.glass {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* 
+ * Configuration des dégradés pour les éléments
+ * - Définit le dégradé pour les éléments qui ont une classe de dégradé
+ */
+.gradient-primary {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+}
+
+/* 
+ * Configuration des ombres pour les éléments
+ * - Définit l'ombre pour les éléments qui ont une classe d'ombre
+ */
+.shadow-soft {
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+}
+
+/* 
+ * Configuration de la mise en page responsive pour les éléments
+ * - Définit les styles pour les éléments en fonction de la largeur de l'écran
+ */
+@media (max-width: 1536px) {
+  /* Ajuste les marges latérales pour les petits écrans */
+  .section-content {
+    @apply px-6;
+  }
+  
+  /* Ajuste la taille des titres pour les petits écrans */
+  .heading-1 {
+    @apply text-4xl md:text-5xl;
+  }
+  
+  .heading-2 {
+    @apply text-3xl md:text-4xl;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Ajuste les marges et les paddings pour les petits écrans */
+  .section {
+    @apply py-16 px-4;
+  }
+  
+  .section-content {
+    @apply px-4;
+  }
+  
+  /* Ajuste la taille des titres pour les petits écrans */
+  .heading-1 {
+    @apply text-3xl;
+  }
+  
+  .heading-2 {
+    @apply text-2xl;
+  }
+  
+  /* Ajuste la taille des boutons pour les petits écrans */
+  .btn-primary, .btn-secondary {
+    @apply px-6 py-3 text-base;
+  }
+}

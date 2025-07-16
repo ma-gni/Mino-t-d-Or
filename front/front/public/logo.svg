@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Cercle de fond -->
+  <circle cx="256" cy="256" r="248" fill="#2563EB"/>
+  
+  <!-- Pain stylisé -->
+  <path d="M256 120
+           C180 120 120 170 120 230
+           C120 280 150 310 180 320
+           L180 380
+           C180 390 190 400 200 400
+           L312 400
+           C322 400 332 390 332 380
+           L332 320
+           C362 310 392 280 392 230
+           C392 170 332 120 256 120Z" 
+        fill="#F9FAFB"/>
+  
+  <!-- Détails du pain -->
+  <path d="M200 280
+           C200 280 220 290 256 290
+           C292 290 312 280 312 280
+           L312 360
+           L200 360Z" 
+        fill="#E5E7EB"/>
+  
+  <!-- Lignes décoratives -->
+  <path d="M220 250
+           C220 250 238 260 256 260
+           C274 260 292 250 292 250" 
+        stroke="#4B5563" 
+        strokeWidth="8" 
+        strokeLinecap="round"/>
+  
+  <!-- Texte "OR" -->
+  <text x="256" y="450" 
+        fill="#F9FAFB" 
+        fontSize="72" 
+        fontWeight="bold" 
+        textAnchor="middle" 
+        fontFamily="Arial">
+    OR
+  </text>
+</svg>
