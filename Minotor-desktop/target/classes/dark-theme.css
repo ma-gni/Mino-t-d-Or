@@ -1,0 +1,14 @@
+/* Thème sombre pour Minot'Or Desktop */
+.root {
+    -fx-base: #23272e;
+    -fx-background: #181a1b;
+    -fx-text-fill: #eee;
+}
+.table-view, .tab-pane, .bar-chart, .text-field, .combo-box, .date-picker, .button {
+    -fx-background-color: #23272e;
+    -fx-text-fill: #eee;
+}
+.button {
+    -fx-background-color: #333;
+    -fx-text-fill: #eee;
+} 
