@@ -18,7 +18,13 @@ import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import com.magnii.minotordesktop.model.AnalyticsDto;
+import com.magnii.minotordesktop.model.AuthResponse;
+import com.magnii.minotordesktop.model.OrderDto;
 import com.magnii.minotordesktop.model.PageVisitDto;
+import com.magnii.minotordesktop.model.ProductDto;
+import com.magnii.minotordesktop.model.StockDto;
+import com.magnii.minotordesktop.model.UserDto;
 import com.magnii.minotordesktop.service.ApiService;
 
 import javafx.animation.FadeTransition;
@@ -26,7 +32,10 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
 import javafx.print.PrinterJob;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.chart.BarChart;
 import javafx.scene.chart.CategoryAxis;
 import javafx.scene.chart.NumberAxis;
@@ -44,6 +53,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.StackPane;
 import javafx.stage.FileChooser;
+import javafx.stage.Stage;
 import javafx.util.Duration;
 
 public class MainViewController {
@@ -67,7 +77,8 @@ public class MainViewController {
     private final int pageSize = 20;
     private final DateTimeFormatter dtf = DateTimeFormatter.ISO_DATE_TIME;
 
-    private final ApiService apiService = new ApiService("http://localhost:8080/api/"); // Adapter l'URL si besoin
+    private final ApiService apiService = new ApiService("http://localhost:8080/api/");
+    private AuthResponse currentUser;
 
     private ObservableList<PageVisitDto> allVisits = FXCollections.observableArrayList();
     private FilteredList<PageVisitDto> filteredVisits = new FilteredList<>(allVisits, p -> true);
@@ -77,6 +88,30 @@ public class MainViewController {
     private boolean darkTheme = false;
     @FXML private Button themeToggleButton;
     @FXML private StackPane rootPane;
+
+    public void setCurrentUser(AuthResponse user) {
+        this.currentUser = user;
+        if (user != null && user.getToken() != null) {
+            apiService.setAuthToken(user.getToken());
+        }
+    }
+
+    public void show() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/MainView.fxml"));
+            Parent root = loader.load();
+            
+            Stage stage = new Stage();
+            stage.setTitle("Minot'Or Desktop Analytics - " + (currentUser != null ? currentUser.getUsername() : ""));
+            stage.setScene(new Scene(root, 1000, 700));
+            stage.show();
+            
+            // Charger les données depuis l'API
+            loadDataFromApi();
+        } catch (Exception e) {
+            showError("Erreur lors de l'ouverture de l'application : " + e.getMessage());
+        }
+    }
 
     @FXML
     public void initialize() {
@@ -92,6 +127,63 @@ public class MainViewController {
         loadPageVisits();
         updatePagination();
         updateBarChart();
+    }
+
+    private void loadDataFromApi() {
+        loader.setVisible(true);
+        
+        try {
+            // Charger les analytics
+            List<AnalyticsDto> analytics = apiService.getAnalytics();
+            updateAnalyticsDisplay(analytics);
+            
+            // Charger les commandes
+            List<OrderDto> orders = apiService.getOrders();
+            updateOrdersDisplay(orders);
+            
+            // Charger les produits
+            List<ProductDto> products = apiService.getProducts();
+            updateProductsDisplay(products);
+            
+            // Charger les utilisateurs
+            List<UserDto> users = apiService.getUsers();
+            updateUsersDisplay(users);
+            
+            // Charger les stocks
+            List<StockDto> stocks = apiService.getStocks();
+            updateStocksDisplay(stocks);
+            
+        } catch (Exception e) {
+            showError("Erreur lors du chargement des données :\n" + e.getMessage());
+            e.printStackTrace();
+        } finally {
+            loader.setVisible(false);
+        }
+    }
+
+    private void updateAnalyticsDisplay(List<AnalyticsDto> analytics) {
+        // Mettre à jour l'affichage des analytics
+        System.out.println("Analytics chargées : " + analytics.size());
+    }
+
+    private void updateOrdersDisplay(List<OrderDto> orders) {
+        // Mettre à jour l'affichage des commandes
+        System.out.println("Commandes chargées : " + orders.size());
+    }
+
+    private void updateProductsDisplay(List<ProductDto> products) {
+        // Mettre à jour l'affichage des produits
+        System.out.println("Produits chargés : " + products.size());
+    }
+
+    private void updateUsersDisplay(List<UserDto> users) {
+        // Mettre à jour l'affichage des utilisateurs
+        System.out.println("Utilisateurs chargés : " + users.size());
+    }
+
+    private void updateStocksDisplay(List<StockDto> stocks) {
+        // Mettre à jour l'affichage des stocks
+        System.out.println("Stocks chargés : " + stocks.size());
     }
 
     private void loadPageVisits() {
