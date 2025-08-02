@@ -28,6 +28,8 @@ import com.magnii.minotordesktop.model.UserDto;
 import com.magnii.minotordesktop.service.ApiService;
 
 import javafx.animation.FadeTransition;
+import javafx.animation.ScaleTransition;
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
@@ -77,7 +79,7 @@ public class MainViewController {
     private final int pageSize = 20;
     private final DateTimeFormatter dtf = DateTimeFormatter.ISO_DATE_TIME;
 
-    private final ApiService apiService = new ApiService("http://localhost:8080/api/");
+    private final ApiService apiService = new ApiService("http://localhost:8081/api/");
     private AuthResponse currentUser;
 
     private ObservableList<PageVisitDto> allVisits = FXCollections.observableArrayList();
@@ -115,18 +117,75 @@ public class MainViewController {
 
     @FXML
     public void initialize() {
+        // Configuration de base
         pageNameColumn.setCellValueFactory(new PropertyValueFactory<>("pageName"));
         visitDateTimeColumn.setCellValueFactory(new PropertyValueFactory<>("visitDateTime"));
         visitorIdColumn.setCellValueFactory(new PropertyValueFactory<>("visitorId"));
-        pageVisitTable.setItems(filteredVisits);
         pageVisitTable.setPlaceholder(emptyLabel);
         pageVisitTable.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         groupByComboBox.setItems(FXCollections.observableArrayList(
             "Aucun regroupement", "Par page", "Par jour"
         ));
+        
+        // Appliquer le thème cinématique par défaut
+        String cinematicCss = getClass().getResource("/cinematic-theme.css").toExternalForm();
+        System.out.println("🎨 CSS cinématique : " + cinematicCss);
+        
+        // Attendre que la scène soit disponible
+        Platform.runLater(() -> {
+            if (rootPane.getScene() != null) {
+                rootPane.getScene().getStylesheets().clear();
+                rootPane.getScene().getStylesheets().add(cinematicCss);
+                System.out.println("✅ CSS appliqué avec succès");
+            } else {
+                System.err.println("❌ Scène non disponible pour appliquer le CSS");
+            }
+        });
+        
+        // Animation d'entrée pour les éléments
+        animateElements();
+        
+        // Charger les données et forcer l'affichage
         loadPageVisits();
-        updatePagination();
-        updateBarChart();
+        
+        // Forcer la mise à jour du tableau après un délai
+        Platform.runLater(() -> {
+            pageVisitTable.setItems(filteredVisits);
+            System.out.println("🎯 Tableau mis à jour avec " + filteredVisits.size() + " éléments");
+            
+            // Si pas de données, ajouter des données de test
+            if (filteredVisits.isEmpty()) {
+                System.out.println("⚠️ Aucune donnée, ajout de données de test...");
+                addTestData();
+            }
+            
+            updateBarChart();
+        });
+    }
+    
+    private void animateElements() {
+        // Animation d'entrée pour le tableau
+        FadeTransition tableFade = new FadeTransition(Duration.millis(800), pageVisitTable);
+        tableFade.setFromValue(0);
+        tableFade.setToValue(1);
+        tableFade.setDelay(Duration.millis(200));
+        tableFade.play();
+        
+        // Animation d'entrée pour les boutons
+        FadeTransition buttonFade = new FadeTransition(Duration.millis(600), themeToggleButton);
+        buttonFade.setFromValue(0);
+        buttonFade.setToValue(1);
+        buttonFade.setDelay(Duration.millis(400));
+        buttonFade.play();
+        
+        // Animation de scale pour le graphique
+        ScaleTransition chartScale = new ScaleTransition(Duration.millis(500), barChart);
+        chartScale.setFromX(0.8);
+        chartScale.setFromY(0.8);
+        chartScale.setToX(1.0);
+        chartScale.setToY(1.0);
+        chartScale.setDelay(Duration.millis(600));
+        chartScale.play();
     }
 
     private void loadDataFromApi() {
@@ -189,10 +248,16 @@ public class MainViewController {
     private void loadPageVisits() {
         loader.setVisible(true);
         try {
+            System.out.println("🔄 Chargement des page-visits...");
             String json = apiService.get("page-visits"); // Adapter l'endpoint à ton API
+            System.out.println("📡 Réponse API : " + json);
             List<PageVisitDto> visits = parseVisits(json);
+            System.out.println("📊 Visites parsées : " + visits.size());
             allVisits.setAll(visits);
+            System.out.println("✅ Données chargées dans allVisits : " + allVisits.size());
+            System.out.println("📋 filteredVisits size : " + filteredVisits.size());
         } catch (Exception e) {
+            System.err.println("❌ Erreur lors du chargement des données : " + e.getMessage());
             showError("Erreur lors du chargement des données :\n" + e.getMessage());
             e.printStackTrace();
         } finally {
@@ -202,18 +267,51 @@ public class MainViewController {
 
     private List<PageVisitDto> parseVisits(String json) {
         List<PageVisitDto> visits = new ArrayList<>();
-        JSONArray arr = new JSONArray(json);
-        for (int i = 0; i < arr.length(); i++) {
-            JSONObject obj = arr.getJSONObject(i);
-            PageVisitDto dto = new PageVisitDto();
-            dto.setPageName(obj.optString("pageName"));
-            dto.setVisitDateTime(obj.optString("visitDateTime"));
-            dto.setVisitorId(obj.optString("visitorId"));
-            visits.add(dto);
+        try {
+            JSONArray arr = new JSONArray(json);
+            System.out.println("📋 JSON Array length : " + arr.length());
+            for (int i = 0; i < arr.length(); i++) {
+                JSONObject obj = arr.getJSONObject(i);
+                PageVisitDto dto = new PageVisitDto();
+                dto.setPageName(obj.optString("pageName"));
+                dto.setVisitDateTime(obj.optString("visitDateTime"));
+                dto.setVisitorId(obj.optString("visitorId"));
+                visits.add(dto);
+                System.out.println("📄 Parsé : " + dto.getPageName() + " - " + dto.getVisitDateTime());
+            }
+        } catch (Exception e) {
+            System.err.println("❌ Erreur parsing JSON : " + e.getMessage());
+            e.printStackTrace();
         }
         return visits;
     }
 
+    private void addTestData() {
+        try {
+            PageVisitDto test1 = new PageVisitDto();
+            test1.setPageName("Accueil");
+            test1.setVisitDateTime("2025-07-31T10:00:00");
+            test1.setVisitorId("test_001");
+            
+            PageVisitDto test2 = new PageVisitDto();
+            test2.setPageName("Produits");
+            test2.setVisitDateTime("2025-07-31T10:30:00");
+            test2.setVisitorId("test_002");
+            
+            PageVisitDto test3 = new PageVisitDto();
+            test3.setPageName("Contact");
+            test3.setVisitDateTime("2025-07-31T11:00:00");
+            test3.setVisitorId("test_003");
+            
+            allVisits.addAll(test1, test2, test3);
+            System.out.println("✅ Données de test ajoutées : " + allVisits.size() + " éléments");
+            
+        } catch (Exception e) {
+            System.err.println("❌ Erreur ajout données test : " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
     private void showError(String message) {
         Alert alert = new Alert(Alert.AlertType.ERROR);
         alert.setTitle("Erreur");
@@ -458,16 +556,26 @@ public class MainViewController {
     @FXML
     private void onToggleTheme() {
         darkTheme = !darkTheme;
-        String darkCss = getClass().getResource("/dark-theme.css").toExternalForm();
-        String lightCss = getClass().getResource("/light-theme.css").toExternalForm();
-        themeToggleButton.getScene().getStylesheets().clear();
+        String cinematicCss = getClass().getResource("/cinematic-theme.css").toExternalForm();
+        
+        if (themeToggleButton.getScene() != null) {
+            themeToggleButton.getScene().getStylesheets().clear();
+            themeToggleButton.getScene().getStylesheets().add(cinematicCss);
+        }
+        
         if (darkTheme) {
             themeToggleButton.setText("☀️");
-            themeToggleButton.getScene().getStylesheets().add(darkCss);
+            rootPane.getStyleClass().add("dark-theme");
         } else {
             themeToggleButton.setText("🌙");
-            themeToggleButton.getScene().getStylesheets().add(lightCss);
+            rootPane.getStyleClass().remove("dark-theme");
         }
+        
+        // Animation de transition
+        FadeTransition fadeTransition = new FadeTransition(Duration.millis(300), rootPane);
+        fadeTransition.setFromValue(0.8);
+        fadeTransition.setToValue(1.0);
+        fadeTransition.play();
     }
 
     @FXML

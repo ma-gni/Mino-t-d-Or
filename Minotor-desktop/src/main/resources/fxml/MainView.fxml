@@ -55,17 +55,20 @@
                         </Tab>
                     </tabs>
                 </TabPane>
-                <Button fx:id="exportCsvButton" text="Exporter CSV" layoutX="50" layoutY="660" prefWidth="120" onAction="#onExportCsv" />
-                <Button fx:id="exportSelectedCsvButton" text="Exporter sélection" layoutX="180" layoutY="660" prefWidth="170" onAction="#onExportSelectedCsv" />
-                <Button fx:id="exportPdfButton" text="Exporter PDF" layoutX="360" layoutY="660" prefWidth="120" onAction="#onExportPdf" />
-                <Button fx:id="printButton" text="Imprimer" layoutX="490" layoutY="660" prefWidth="120" onAction="#onPrint" />
-                <Button fx:id="printChartButton" text="Imprimer graphique" layoutX="620" layoutY="660" prefWidth="170" onAction="#onPrintChart" />
-                <Button fx:id="deleteSelectedButton" text="Supprimer sélection" layoutX="800" layoutY="660" prefWidth="150" onAction="#onDeleteSelected" />
+                <!-- Loader -->
                 <ProgressIndicator fx:id="loader" layoutX="475" layoutY="350" visible="false" />
-                <Button fx:id="prevPageButton" text="Page précédente" layoutX="400" layoutY="660" prefWidth="120" onAction="#onPrevPage" />
-                <Label fx:id="pageLabel" text="Page 1" layoutX="530" layoutY="665" prefWidth="80" />
-                <Button fx:id="nextPageButton" text="Page suivante" layoutX="620" layoutY="660" prefWidth="120" onAction="#onNextPage" />
+                
+                <!-- BOUTONS BIEN ALIGNÉS EN BAS -->
+                <Button fx:id="exportCsvButton" text="Exporter CSV" layoutX="50" layoutY="660" prefWidth="120" onAction="#onExportCsv" />
+                <Button fx:id="exportSelectedCsvButton" text="Exporter sélection" layoutX="180" layoutY="660" prefWidth="140" onAction="#onExportSelectedCsv" />
+                <Button fx:id="exportPdfButton" text="Exporter PDF" layoutX="330" layoutY="660" prefWidth="120" onAction="#onExportPdf" />
+                <Button fx:id="prevPageButton" text="Page précédente" layoutX="460" layoutY="660" prefWidth="120" onAction="#onPrevPage" />
+                <Label fx:id="pageLabel" text="Page 1" layoutX="590" layoutY="665" prefWidth="80" />
+                <Button fx:id="nextPageButton" text="Page suivante" layoutX="680" layoutY="660" prefWidth="120" onAction="#onNextPage" />
+                <Button fx:id="printButton" text="Imprimer" layoutX="810" layoutY="660" prefWidth="100" onAction="#onPrint" />
+                <Button fx:id="printChartButton" text="Imprimer graphique" layoutX="920" layoutY="660" prefWidth="150" onAction="#onPrintChart" />
+                <Button fx:id="deleteSelectedButton" text="Supprimer sélection" layoutX="1080" layoutY="660" prefWidth="150" onAction="#onDeleteSelected" />
             </children>
         </AnchorPane>
     </children>
-</StackPane> 
+</StackPane>
