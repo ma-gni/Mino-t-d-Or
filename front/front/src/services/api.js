@@ -1,429 +1,343 @@
 /**
  * api.js
  * --------------------------------------------------
- * Service API pour l'application Minot'Or
+ * Service API centralisé pour l'application Minot'Or
  * 
- * Ce fichier regroupe toutes les méthodes d'appel à l'API pour :
- * - Authentification
- * - Gestion des utilisateurs
- * - Gestion des produits
- * - Gestion des commandes
- * - Gestion des devis
- * - Gestion des stocks
- * - Gestion des livraisons
- * - Gestion des invendus
+ * Ce service gère tous les appels API avec :
+ * - Gestion automatique des tokens JWT
+ * - Gestion centralisée des erreurs
+ * - Intercepteurs pour les requêtes/réponses
+ * - Retry automatique en cas d'échec
  */
 
-import axios from './axiosConfig';
+import axios from 'axios';
 
-// ===== SERVICE D'AUTHENTIFICATION =====
+// Configuration de base
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080/api';
+
+// Instance axios avec configuration de base
+const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Intercepteur pour ajouter le token JWT à chaque requête
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Intercepteur pour gérer les réponses et erreurs
+apiClient.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  async (error) => {
+    const originalRequest = error.config;
+
+    // Si l'erreur est 401 et qu'on n'a pas déjà tenté de rafraîchir le token
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      try {
+        // Tentative de rafraîchissement du token
+        const refreshToken = localStorage.getItem('refreshToken');
+        if (refreshToken) {
+          const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
+            refreshToken,
+          });
+          
+          const { token } = response.data;
+          localStorage.setItem('authToken', token);
+          
+          // Retry de la requête originale
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          return apiClient(originalRequest);
+        }
+      } catch (refreshError) {
+        // Si le refresh échoue, déconnexion
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+// Service d'authentification
 export const authService = {
-  /**
-   * Connexion utilisateur
-   * @param {Object} credentials - Identifiants de connexion
-   * @returns {Promise} Promesse avec les données utilisateur
-   */
-  login: (credentials) => {
-    return axios.post('/auth/login', credentials);
+  async login(credentials) {
+    try {
+      const response = await apiClient.post('/auth/login', credentials);
+      const { token, refreshToken, user } = response.data;
+      
+      localStorage.setItem('authToken', token);
+      localStorage.setItem('refreshToken', refreshToken);
+      localStorage.setItem('user', JSON.stringify(user));
+      
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Erreur de connexion');
+    }
   },
 
-  /**
-   * Inscription utilisateur (boulanger uniquement)
-   * @param {Object} userData - Données d'inscription
-   * @returns {Promise} Promesse avec les données utilisateur
-   */
-  register: (userData) => {
-    return axios.post('/auth/register', userData);
+  async register(userData) {
+    try {
+      const response = await apiClient.post('/auth/register', userData);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Erreur d\'inscription');
+    }
   },
 
-  /**
-   * Déconnexion utilisateur
-   * @returns {Promise} Promesse avec statut de déconnexion
-   */
-  logout: () => {
-    return axios.post('/auth/logout');
+  async logout() {
+    try {
+      await apiClient.post('/auth/logout');
+    } catch (error) {
+      console.error('Erreur lors de la déconnexion:', error);
+    } finally {
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+    }
   },
 
-  /**
-   * Réinitialisation du mot de passe
-   * @param {Object} data - Données de réinitialisation
-   * @returns {Promise} Promesse avec statut de la demande
-   */
-  resetPassword: (data) => {
-    return axios.post('/auth/reset-password', data);
+  getCurrentUser() {
+    const user = localStorage.getItem('user');
+    return user ? JSON.parse(user) : null;
   },
 
-  /**
-   * Vérification du token JWT
-   * @returns {Promise} Promesse avec validité du token
-   */
-  verifyToken: () => {
-    return axios.get('/auth/verify-token');
+  isAuthenticated() {
+    return !!localStorage.getItem('authToken');
   }
 };
 
-// ===== SERVICE DE GESTION DES UTILISATEURS =====
-export const userService = {
-  /**
-   * Récupération du profil utilisateur
-   * @returns {Promise} Promesse avec les données utilisateur
-   */
-  getProfile: () => {
-    return axios.get('/users/profile');
-  },
-
-  /**
-   * Mise à jour du profil utilisateur
-   * @param {Object} userData - Nouvelles données utilisateur
-   * @returns {Promise} Promesse avec les données utilisateur mises à jour
-   */
-  updateProfile: (userData) => {
-    return axios.put('/users/profile', userData);
-  },
-
-  /**
-   * Changement du mot de passe
-   * @param {Object} passwordData - Données de changement de mot de passe
-   * @returns {Promise} Promesse avec statut du changement
-   */
-  changePassword: (passwordData) => {
-    return axios.put('/users/change-password', passwordData);
-  },
-
-  /**
-   * Récupération des utilisateurs (pour rôles admin seulement)
-   * @param {Object} params - Paramètres de filtrage et pagination
-   * @returns {Promise} Promesse avec liste d'utilisateurs
-   */
-  getUsers: (params = {}) => {
-    return axios.get('/users', { params });
-  }
-};
-
-// ===== SERVICE DE GESTION DES PRODUITS =====
+// Service des produits
 export const productService = {
-  /**
-   * Récupération du catalogue de produits
-   * @param {Object} params - Paramètres de filtrage et pagination
-   * @returns {Promise} Promesse avec liste de produits
-   */
-  getProducts: (params = {}) => {
-    return axios.get('/products', { params });
+  async getAllProducts(params = {}) {
+    try {
+      const response = await apiClient.get('/products', { params });
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Erreur lors du chargement des produits');
+    }
   },
 
-  /**
-   * Récupération d'un produit par son ID
-   * @param {String} id - ID du produit
-   * @returns {Promise} Promesse avec les détails du produit
-   */
-  getProductById: (id) => {
-    return axios.get(`/products/${id}`);
+  async getProductById(id) {
+    try {
+      const response = await apiClient.get(`/products/${id}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Erreur lors du chargement du produit');
+    }
   },
 
-  /**
-   * Ajout d'un nouveau produit (pour rôles admin/commercial)
-   * @param {Object} productData - Données du produit
-   * @returns {Promise} Promesse avec le produit créé
-   */
-  createProduct: (productData) => {
-    return axios.post('/products', productData);
+  async createProduct(productData) {
+    try {
+      const response = await apiClient.post('/products', productData);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Erreur lors de la création du produit');
+    }
   },
 
-  /**
-   * Mise à jour d'un produit (pour rôles admin/commercial)
-   * @param {String} id - ID du produit
-   * @param {Object} productData - Nouvelles données du produit
-   * @returns {Promise} Promesse avec le produit mis à jour
-   */
-  updateProduct: (id, productData) => {
-    return axios.put(`/products/${id}`, productData);
+  async updateProduct(id, productData) {
+    try {
+      const response = await apiClient.put(`/products/${id}`, productData);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Erreur lors de la mise à jour du produit');
+    }
   },
 
-  /**
-   * Suppression d'un produit (pour rôles admin/commercial)
-   * @param {String} id - ID du produit
-   * @returns {Promise} Promesse avec statut de suppression
-   */
-  deleteProduct: (id) => {
-    return axios.delete(`/products/${id}`);
-  },
-
-  /**
-   * Récupération des catégories de produits
-   * @returns {Promise} Promesse avec liste de catégories
-   */
-  getCategories: () => {
-    return axios.get('/products/categories');
+  async deleteProduct(id) {
+    try {
+      await apiClient.delete(`/products/${id}`);
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Erreur lors de la suppression du produit');
+    }
   }
 };
 
-// ===== SERVICE DE GESTION DES DEVIS =====
-export const quoteService = {
-  /**
-   * Récupération des devis (filtrés selon le rôle)
-   * @param {Object} params - Paramètres de filtrage et pagination
-   * @returns {Promise} Promesse avec liste de devis
-   */
-  getQuotes: (params = {}) => {
-    return axios.get('/quotes', { params });
-  },
-
-  /**
-   * Récupération d'un devis par son ID
-   * @param {String} id - ID du devis
-   * @returns {Promise} Promesse avec les détails du devis
-   */
-  getQuoteById: (id) => {
-    return axios.get(`/quotes/${id}`);
-  },
-
-  /**
-   * Création d'un nouveau devis
-   * @param {Object} quoteData - Données du devis
-   * @returns {Promise} Promesse avec le devis créé
-   */
-  createQuote: (quoteData) => {
-    return axios.post('/quotes', quoteData);
-  },
-
-  /**
-   * Mise à jour d'un devis
-   * @param {String} id - ID du devis
-   * @param {Object} quoteData - Nouvelles données du devis
-   * @returns {Promise} Promesse avec le devis mis à jour
-   */
-  updateQuote: (id, quoteData) => {
-    return axios.put(`/quotes/${id}`, quoteData);
-  },
-
-  /**
-   * Suppression d'un devis
-   * @param {String} id - ID du devis
-   * @returns {Promise} Promesse avec statut de suppression
-   */
-  deleteQuote: (id) => {
-    return axios.delete(`/quotes/${id}`);
-  },
-
-  /**
-   * Acceptation d'un devis
-   * @param {String} id - ID du devis
-   * @returns {Promise} Promesse avec le devis mis à jour
-   */
-  acceptQuote: (id) => {
-    return axios.put(`/quotes/${id}/accept`);
-  },
-
-  /**
-   * Refus d'un devis
-   * @param {String} id - ID du devis
-   * @param {Object} data - Données de refus (raison, etc.)
-   * @returns {Promise} Promesse avec le devis mis à jour
-   */
-  rejectQuote: (id, data = {}) => {
-    return axios.put(`/quotes/${id}/reject`, data);
-  }
-};
-
-// ===== SERVICE DE GESTION DES COMMANDES =====
+// Service des commandes
 export const orderService = {
-  /**
-   * Récupération des commandes (filtrées selon le rôle)
-   * @param {Object} params - Paramètres de filtrage et pagination
-   * @returns {Promise} Promesse avec liste de commandes
-   */
-  getOrders: (params = {}) => {
-    return axios.get('/orders', { params });
+  async getAllOrders(params = {}) {
+    try {
+      const response = await apiClient.get('/orders', { params });
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Erreur lors du chargement des commandes');
+    }
   },
 
-  /**
-   * Récupération d'une commande par son ID
-   * @param {String} id - ID de la commande
-   * @returns {Promise} Promesse avec les détails de la commande
-   */
-  getOrderById: (id) => {
-    return axios.get(`/orders/${id}`);
+  async getOrderById(id) {
+    try {
+      const response = await apiClient.get(`/orders/${id}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Erreur lors du chargement de la commande');
+    }
   },
 
-  /**
-   * Création d'une nouvelle commande
-   * @param {Object} orderData - Données de la commande
-   * @returns {Promise} Promesse avec la commande créée
-   */
-  createOrder: (orderData) => {
-    return axios.post('/orders', orderData);
+  async createOrder(orderData) {
+    try {
+      const response = await apiClient.post('/orders', orderData);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Erreur lors de la création de la commande');
+    }
   },
 
-  /**
-   * Mise à jour d'une commande
-   * @param {String} id - ID de la commande
-   * @param {Object} orderData - Nouvelles données de la commande
-   * @returns {Promise} Promesse avec la commande mise à jour
-   */
-  updateOrder: (id, orderData) => {
-    return axios.put(`/orders/${id}`, orderData);
-  },
-
-  /**
-   * Annulation d'une commande
-   * @param {String} id - ID de la commande
-   * @param {Object} data - Données d'annulation (raison, etc.)
-   * @returns {Promise} Promesse avec la commande mise à jour
-   */
-  cancelOrder: (id, data = {}) => {
-    return axios.put(`/orders/${id}/cancel`, data);
-  },
-
-  /**
-   * Téléchargement du bon de livraison
-   * @param {String} id - ID de la commande
-   * @returns {Promise} Promesse avec le fichier PDF
-   */
-  downloadDeliveryNote: (id) => {
-    return axios.get(`/orders/${id}/delivery-note`, {
-      responseType: 'blob'
-    });
-  },
-
-  /**
-   * Signalement d'un problème sur une commande
-   * @param {String} id - ID de la commande
-   * @param {Object} issueData - Données du problème
-   * @returns {Promise} Promesse avec la commande mise à jour
-   */
-  reportIssue: (id, issueData) => {
-    return axios.post(`/orders/${id}/issues`, issueData);
+  async updateOrderStatus(id, status) {
+    try {
+      const response = await apiClient.patch(`/orders/${id}/status`, { status });
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Erreur lors de la mise à jour du statut');
+    }
   }
 };
 
-// ===== SERVICE DE GESTION DES LIVRAISONS =====
-export const deliveryService = {
-  /**
-   * Récupération des livraisons (filtrées selon le rôle)
-   * @param {Object} params - Paramètres de filtrage et pagination
-   * @returns {Promise} Promesse avec liste de livraisons
-   */
-  getDeliveries: (params = {}) => {
-    return axios.get('/deliveries', { params });
+// Service des devis
+export const quoteService = {
+  async getAllQuotes(params = {}) {
+    try {
+      const response = await apiClient.get('/quotes', { params });
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Erreur lors du chargement des devis');
+    }
   },
 
-  /**
-   * Récupération d'une livraison par son ID
-   * @param {String} id - ID de la livraison
-   * @returns {Promise} Promesse avec les détails de la livraison
-   */
-  getDeliveryById: (id) => {
-    return axios.get(`/deliveries/${id}`);
+  async getQuoteById(id) {
+    try {
+      const response = await apiClient.get(`/quotes/${id}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Erreur lors du chargement du devis');
+    }
   },
 
-  /**
-   * Mise à jour du statut d'une livraison
-   * @param {String} id - ID de la livraison
-   * @param {Object} statusData - Données de mise à jour du statut
-   * @returns {Promise} Promesse avec la livraison mise à jour
-   */
-  updateDeliveryStatus: (id, statusData) => {
-    return axios.put(`/deliveries/${id}/status`, statusData);
+  async createQuote(quoteData) {
+    try {
+      const response = await apiClient.post('/quotes', quoteData);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Erreur lors de la création du devis');
+    }
   },
 
-  /**
-   * Génération des QR codes pour les palettes d'une livraison
-   * @param {String} id - ID de la livraison
-   * @returns {Promise} Promesse avec les QR codes générés
-   */
-  generateQRCodes: (id) => {
-    return axios.get(`/deliveries/${id}/qr-codes`);
+  async updateQuoteStatus(id, status) {
+    try {
+      const response = await apiClient.patch(`/quotes/${id}/status`, { status });
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Erreur lors de la mise à jour du statut');
+    }
   }
 };
 
-// ===== SERVICE DE GESTION DES STOCKS =====
+// Service des utilisateurs
+export const userService = {
+  async getAllUsers(params = {}) {
+    try {
+      const response = await apiClient.get('/users', { params });
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Erreur lors du chargement des utilisateurs');
+    }
+  },
+
+  async getUserById(id) {
+    try {
+      const response = await apiClient.get(`/users/${id}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Erreur lors du chargement de l\'utilisateur');
+    }
+  },
+
+  async updateUser(id, userData) {
+    try {
+      const response = await apiClient.put(`/users/${id}`, userData);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Erreur lors de la mise à jour de l\'utilisateur');
+    }
+  },
+
+  async deleteUser(id) {
+    try {
+      await apiClient.delete(`/users/${id}`);
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Erreur lors de la suppression de l\'utilisateur');
+    }
+  }
+};
+
+// Service des stocks
 export const stockService = {
-  /**
-   * Récupération des stocks (filtrés selon le rôle)
-   * @param {Object} params - Paramètres de filtrage et pagination
-   * @returns {Promise} Promesse avec les niveaux de stock
-   */
-  getStocks: (params = {}) => {
-    return axios.get('/stocks', { params });
+  async getAllStocks(params = {}) {
+    try {
+      const response = await apiClient.get('/stocks', { params });
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Erreur lors du chargement des stocks');
+    }
   },
 
-  /**
-   * Récupération du stock d'un produit
-   * @param {String} productId - ID du produit
-   * @returns {Promise} Promesse avec le niveau de stock
-   */
-  getProductStock: (productId) => {
-    return axios.get(`/stocks/products/${productId}`);
-  },
-
-  /**
-   * Mise à jour du niveau de stock
-   * @param {String} productId - ID du produit
-   * @param {Object} stockData - Données de mise à jour du stock
-   * @returns {Promise} Promesse avec le stock mis à jour
-   */
-  updateStock: (productId, stockData) => {
-    return axios.put(`/stocks/products/${productId}`, stockData);
-  },
-
-  /**
-   * Récupération de l'historique des mouvements de stock
-   * @param {Object} params - Paramètres de filtrage et pagination
-   * @returns {Promise} Promesse avec l'historique des mouvements
-   */
-  getStockHistory: (params = {}) => {
-    return axios.get('/stocks/history', { params });
+  async updateStock(id, stockData) {
+    try {
+      const response = await apiClient.put(`/stocks/${id}`, stockData);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Erreur lors de la mise à jour du stock');
+    }
   }
 };
 
-// ===== SERVICE DE GESTION DES INVENDUS =====
-export const unsoldService = {
-  /**
-   * Récupération des déclarations d'invendus
-   * @param {Object} params - Paramètres de filtrage et pagination
-   * @returns {Promise} Promesse avec liste des déclarations
-   */
-  getUnsoldDeclarations: (params = {}) => {
-    return axios.get('/unsold', { params });
+// Service des analytics
+export const analyticsService = {
+  async getAnalytics() {
+    try {
+      const response = await apiClient.get('/analytics');
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Erreur lors du chargement des analytics');
+    }
   },
 
-  /**
-   * Récupération d'une déclaration d'invendus par son ID
-   * @param {String} id - ID de la déclaration
-   * @returns {Promise} Promesse avec les détails de la déclaration
-   */
-  getUnsoldDeclarationById: (id) => {
-    return axios.get(`/unsold/${id}`);
+  async getOrderAnalytics() {
+    try {
+      const response = await apiClient.get('/analytics/orders');
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Erreur lors du chargement des analytics de commandes');
+    }
   },
 
-  /**
-   * Création d'une nouvelle déclaration d'invendus
-   * @param {Object} declarationData - Données de la déclaration
-   * @returns {Promise} Promesse avec la déclaration créée
-   */
-  createUnsoldDeclaration: (declarationData) => {
-    return axios.post('/unsold', declarationData);
-  },
-
-  /**
-   * Mise à jour d'une déclaration d'invendus
-   * @param {String} id - ID de la déclaration
-   * @param {Object} declarationData - Nouvelles données de la déclaration
-   * @returns {Promise} Promesse avec la déclaration mise à jour
-   */
-  updateUnsoldDeclaration: (id, declarationData) => {
-    return axios.put(`/unsold/${id}`, declarationData);
+  async getProductAnalytics() {
+    try {
+      const response = await apiClient.get('/analytics/products');
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Erreur lors du chargement des analytics de produits');
+    }
   }
 };
 
-// Export d'un objet unifié pour un accès plus simple
-export default {
-  auth: authService,
-  users: userService,
-  products: productService,
-  quotes: quoteService,
-  orders: orderService,
-  deliveries: deliveryService,
-  stocks: stockService,
-  unsold: unsoldService
-};
+export default apiClient;

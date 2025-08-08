@@ -10,10 +10,6 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "quote_items")
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
 public class QuoteItem {
 
     @Id
@@ -29,4 +25,27 @@ public class QuoteItem {
     @ManyToOne
     @JoinColumn(name = "product_id")
     private Product product;
+
+    // Constructors
+    public QuoteItem() {}
+
+    public QuoteItem(Long id, int quantity, Quote quote, Product product) {
+        this.id = id;
+        this.quantity = quantity;
+        this.quote = quote;
+        this.product = product;
+    }
+
+    // Getters and Setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    public int getQuantity() { return quantity; }
+    public void setQuantity(int quantity) { this.quantity = quantity; }
+
+    public Quote getQuote() { return quote; }
+    public void setQuote(Quote quote) { this.quote = quote; }
+
+    public Product getProduct() { return product; }
+    public void setProduct(Product product) { this.product = product; }
 }

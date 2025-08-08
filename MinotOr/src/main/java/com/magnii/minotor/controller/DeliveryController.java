@@ -3,12 +3,22 @@ package com.magnii.minotor.controller;
 import com.magnii.minotor.dto.DeliveryDTO;
 import com.magnii.minotor.service.DeliveryService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.CrossOrigin;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/deliveries")
+@CrossOrigin(origins = "*")
 public class DeliveryController {
 
     private final DeliveryService deliveryService;
@@ -46,5 +56,76 @@ public class DeliveryController {
     public ResponseEntity<Void> deleteDelivery(@PathVariable Long id){
         deliveryService.deleteDelivery(id);
         return ResponseEntity.noContent().build();
+    }
+
+    // Nouveaux endpoints pour l'app mobile
+
+    // Récupérer les livraisons en cours pour un livreur
+    @GetMapping("/mobile/active")
+    public ResponseEntity<List<DeliveryDTO>> getActiveDeliveries() {
+        List<DeliveryDTO> deliveries = deliveryService.getAllDeliveries();
+        // Filtrer pour ne garder que les livraisons en cours
+        List<DeliveryDTO> activeDeliveries = deliveries.stream()
+            .filter(d -> "SHIPPED".equals(d.getStatus()))
+            .toList();
+        return ResponseEntity.ok(activeDeliveries);
+    }
+
+    // Mettre à jour le statut d'une livraison (simplifié pour mobile)
+    @PutMapping("/mobile/{id}/status")
+    public ResponseEntity<Map<String, Object>> updateDeliveryStatus(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> request) {
+        try {
+            String status = request.get("status");
+            DeliveryDTO deliveryDTO = deliveryService.getDeliveryById(id);
+            deliveryDTO.setStatus(status);
+            
+            DeliveryDTO updated = deliveryService.updateDelivery(deliveryDTO);
+            
+            Map<String, Object> response = Map.of(
+                "success", true,
+                "message", "Statut mis à jour avec succès",
+                "delivery", updated
+            );
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> response = Map.of(
+                "success", false,
+                "error", "Erreur lors de la mise à jour"
+            );
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    // Scanner un QR code pour valider une livraison
+    @PostMapping("/mobile/scan")
+    public ResponseEntity<Map<String, Object>> scanQRCode(@RequestBody Map<String, String> request) {
+        try {
+            String qrCode = request.get("qrCode");
+            
+            // Logique simple : le QR code contient l'ID de la livraison
+            Long deliveryId = Long.parseLong(qrCode);
+            DeliveryDTO delivery = deliveryService.getDeliveryById(deliveryId);
+            
+            // Mettre à jour le statut à DELIVERED
+            delivery.setStatus("DELIVERED");
+            DeliveryDTO updated = deliveryService.updateDelivery(delivery);
+            
+            Map<String, Object> response = Map.of(
+                "success", true,
+                "message", "Livraison validée avec succès",
+                "delivery", updated
+            );
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> response = Map.of(
+                "success", false,
+                "error", "QR Code invalide ou livraison introuvable"
+            );
+            return ResponseEntity.badRequest().body(response);
+        }
     }
 }

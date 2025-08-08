@@ -2,8 +2,14 @@ package com.magnii.minotor.service;
 
 import com.magnii.minotor.dto.QuoteDTO;
 import com.magnii.minotor.dto.QuoteItemDTO;
-import com.magnii.minotor.model.*;
-import com.magnii.minotor.repository.*;
+import com.magnii.minotor.model.Quote;
+import com.magnii.minotor.model.QuoteItem;
+import com.magnii.minotor.model.User;
+import com.magnii.minotor.model.Product;
+import com.magnii.minotor.repository.QuoteRepository;
+import com.magnii.minotor.repository.QuoteItemRepository;
+import com.magnii.minotor.repository.UserRepository;
+import com.magnii.minotor.repository.ProductRepository;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -36,6 +42,7 @@ public class QuoteService {
         quote.setUser(user);
         quote.setRequestDate(LocalDateTime.now());
         quote.setAccepted(false);
+        
         final Quote savedQuote = quoteRepository.save(quote);
 
         List<QuoteItem> items = quoteDTO.getItems().stream().map(itemDTO -> {

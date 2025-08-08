@@ -12,7 +12,8 @@
  * et d'adapter l'interface en fonction de son rôle (boulanger, commercial, approvisionnement, preparation, maintenance).
  */
 
-import React, { createContext, useState, useContext } from 'react';
+import React, { createContext, useState, useContext, useEffect } from 'react';
+import { authService } from '../services/api';
 
 /**
  * Création du contexte d'authentification
@@ -39,7 +40,8 @@ export const ROLES = {
   COMMERCIAL: 'commercial',
   APPROVISIONNEMENT: 'approvisionnement',
   PREPARATION: 'preparation',
-  MAINTENANCE: 'maintenance'
+  MAINTENANCE: 'maintenance',
+  ADMIN: 'admin'
 };
 
 /**
@@ -59,7 +61,7 @@ export const AuthProvider = ({ children }) => {
    * Cet état stocke les informations de l'utilisateur connecté.
    * Une valeur null indique que l'utilisateur n'est pas connecté.
    */
-  const [user, setUser] = useState(null); // null = pas connecté
+  const [user, setUser] = useState(null);
   
   /**
    * État d'authentification
@@ -69,21 +71,67 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   /**
+   * État de chargement
+   */
+  const [loading, setLoading] = useState(true);
+
+  /**
+   * Vérification de l'authentification au démarrage
+   */
+  useEffect(() => {
+    const checkAuth = () => {
+      try {
+        const currentUser = authService.getCurrentUser();
+        const isAuth = authService.isAuthenticated();
+        
+        if (currentUser && isAuth) {
+          setUser(currentUser);
+          setIsAuthenticated(true);
+        } else {
+          // Nettoyage si les données sont incohérentes
+          authService.logout();
+        }
+      } catch (error) {
+        console.error('Erreur lors de la vérification de l\'authentification:', error);
+        authService.logout();
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, []);
+
+  /**
    * Fonction de connexion
    * 
    * Cette fonction met à jour l'état de l'utilisateur et l'état d'authentification
    * lorsqu'un utilisateur se connecte avec succès.
    * 
-   * @param {Object} userData Les données de l'utilisateur connecté
+   * @param {Object} credentials Les identifiants de connexion
+   * @returns {Promise} Promesse avec les données de l'utilisateur
    */
-  const login = (userData) => {
-    setUser({
-      email: userData.email,
-      firstName: userData.firstName,
-      lastName: userData.lastName,
-      role: userData.role || ROLES.BOULANGER, // Par défaut, on met le rôle boulanger
-    });
-    setIsAuthenticated(true);
+  const login = async (credentials) => {
+    try {
+      setLoading(true);
+      const response = await authService.login(credentials);
+      
+      setUser({
+        id: response.user.id,
+        email: response.user.email,
+        firstName: response.user.firstName,
+        lastName: response.user.lastName,
+        role: response.user.role || ROLES.BOULANGER,
+        username: response.user.username
+      });
+      setIsAuthenticated(true);
+      
+      return response;
+    } catch (error) {
+      throw error;
+    } finally {
+      setLoading(false);
+    }
   };
 
   /**
@@ -92,9 +140,30 @@ export const AuthProvider = ({ children }) => {
    * Cette fonction réinitialise l'état de l'utilisateur et l'état d'authentification
    * lorsqu'un utilisateur se déconnecte.
    */
-  const logout = () => {
-    setUser(null);
-    setIsAuthenticated(false);
+  const logout = async () => {
+    try {
+      await authService.logout();
+    } catch (error) {
+      console.error('Erreur lors de la déconnexion:', error);
+    } finally {
+      setUser(null);
+      setIsAuthenticated(false);
+    }
+  };
+
+  /**
+   * Fonction de rafraîchissement du token
+   */
+  const refreshToken = async () => {
+    try {
+      const response = await authService.refreshToken();
+      setUser(response.user);
+      setIsAuthenticated(true);
+      return response;
+    } catch (error) {
+      await logout();
+      throw error;
+    }
   };
 
   /**
@@ -105,6 +174,16 @@ export const AuthProvider = ({ children }) => {
    */
   const hasRole = (role) => {
     return user?.role === role;
+  };
+
+  /**
+   * Vérifie si l'utilisateur a au moins un des rôles spécifiés
+   * 
+   * @param {Array} roles Les rôles à vérifier
+   * @returns {boolean} Vrai si l'utilisateur a au moins un des rôles, faux sinon
+   */
+  const hasAnyRole = (roles) => {
+    return roles.some(role => user?.role === role);
   };
 
   /**
@@ -143,6 +222,23 @@ export const AuthProvider = ({ children }) => {
   const isMaintenance = () => hasRole(ROLES.MAINTENANCE);
 
   /**
+   * Vérifie si l'utilisateur est un administrateur
+   * 
+   * @returns {boolean} Vrai si l'utilisateur est un administrateur, faux sinon
+   */
+  const isAdmin = () => hasRole(ROLES.ADMIN);
+
+  /**
+   * Obtient le nom complet de l'utilisateur
+   * 
+   * @returns {string} Le nom complet de l'utilisateur
+   */
+  const getFullName = () => {
+    if (!user) return '';
+    return `${user.firstName} ${user.lastName}`.trim();
+  };
+
+  /**
    * Valeur du contexte
    * 
    * Cette valeur contient l'état de l'utilisateur, l'état d'authentification
@@ -152,14 +248,19 @@ export const AuthProvider = ({ children }) => {
     <AuthContext.Provider value={{ 
       user, 
       isAuthenticated, 
+      loading,
       login, 
       logout,
+      refreshToken,
       hasRole,
+      hasAnyRole,
       isBoulanger,
       isCommercial,
       isApprovisionnement,
       isPreparation,
-      isMaintenance
+      isMaintenance,
+      isAdmin,
+      getFullName
     }}>
       {children}
     </AuthContext.Provider>

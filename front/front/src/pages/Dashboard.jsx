@@ -1,274 +1,340 @@
 /**
  * Dashboard.jsx
  * --------------------------------------------------
- * Page de tableau de bord de l'application Minot'Or
+ * Tableau de bord principal de l'application Minot'Or
  * 
  * Cette page présente :
- * - Le tableau de bord personnalisé de l'utilisateur connecté
- * - Des modules adaptés au rôle de l'utilisateur (boulanger ou minotier)
- * - Des liens vers les différentes fonctionnalités de l'application
- * 
- * Le contenu est dynamiquement adapté en fonction du rôle de l'utilisateur.
+ * - Un accueil personnalisé selon le rôle de l'utilisateur
+ * - Des statistiques clés adaptées au rôle
+ * - Des raccourcis vers les fonctionnalités principales
+ * - Des notifications importantes
+ * - Un aperçu des activités récentes
  */
 
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth, ROLES } from '../context/AuthContext';
+import { useNotification } from '../components/Notification';
+import DashboardStats from '../components/DashboardStats';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 /**
  * Composant Dashboard
  * 
- * Ce composant représente le tableau de bord principal de l'application.
- * Il utilise le contexte d'authentification pour accéder aux informations de l'utilisateur
- * et adapter l'interface en fonction de son rôle.
+ * Ce composant affiche un tableau de bord personnalisé selon le rôle de l'utilisateur.
+ * Il utilise le contexte d'authentification pour adapter l'interface.
  */
-const Dashboard = () => {
-  const { user } = useAuth();
+export default function Dashboard() {
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const { showInfo } = useNotification();
+
+  // Affichage du spinner de chargement si l'authentification est en cours
+  if (authLoading) {
+    return <LoadingSpinner fullScreen text="Chargement du tableau de bord..." />;
+  }
+
+  // Redirection si non authentifié
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">
+            Accès non autorisé
+          </h2>
+          <p className="text-gray-600 mb-6">
+            Veuillez vous connecter pour accéder au tableau de bord.
+          </p>
+          <Link
+            to="/auth/login"
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+          >
+            Se connecter
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   /**
-   * Définition des modules en fonction du rôle
-   * 
-   * Cette fonction retourne un tableau de modules (cartes de navigation)
-   * adaptés au rôle de l'utilisateur connecté.
-   * 
-   * @returns {Array} Tableau d'objets représentant les modules disponibles
+   * Obtient les modules disponibles selon le rôle
    */
   const getModules = () => {
-    const modules = [];
+    const baseModules = [
+      {
+        name: 'Mon Profil',
+        description: 'Gérer vos informations personnelles',
+        icon: '👤',
+        path: '/profile',
+        color: 'bg-gray-500'
+      }
+    ];
 
-    // Modules communs à tous les utilisateurs
-    modules.push({
-      name: 'Tableau de bord',
-      description: 'Vue d\'ensemble de votre activité',
-      icon: '📊',
-      path: '/dashboard',
-      color: 'bg-blue-500'
-    });
+    switch (user?.role) {
+      case ROLES.BOULANGER:
+        return [
+          ...baseModules,
+          {
+            name: 'Mes Commandes',
+            description: 'Suivre vos commandes et devis',
+            icon: '📦',
+            path: '/boulanger/commandes',
+            color: 'bg-blue-500'
+          },
+          {
+            name: 'Catalogue',
+            description: 'Consulter les produits disponibles',
+            icon: '🌾',
+            path: '/boulanger/catalogue',
+            color: 'bg-green-500'
+          },
+          {
+            name: 'Mes Devis',
+            description: 'Gérer vos demandes de devis',
+            icon: '📝',
+            path: '/boulanger/devis',
+            color: 'bg-yellow-500'
+          },
+          {
+            name: 'Invendus',
+            description: 'Signaler les produits invendus',
+            icon: '♻️',
+            path: '/boulanger/invendus',
+            color: 'bg-red-500'
+          }
+        ];
 
-    // Modules spécifiques aux boulangers
-    if (user.role === ROLES.BOULANGER) {
-      modules.push(
-        {
-          name: 'Catalogue',
-          description: 'Consultez les produits disponibles',
-          icon: '🍞',
-          path: '/boulanger/produits',
-          color: 'bg-yellow-500'
-        },
-        {
-          name: 'Devis',
-          description: 'Gérez vos demandes de devis',
-          icon: '📝',
-          path: '/boulanger/devis',
-          color: 'bg-green-500'
-        },
-        {
-          name: 'Commandes',
-          description: 'Suivez vos commandes en cours',
-          icon: '🛒',
-          path: '/boulanger/commandes',
-          color: 'bg-indigo-500'
-        }
-      );
+      case ROLES.COMMERCIAL:
+        return [
+          ...baseModules,
+          {
+            name: 'Gestion Devis',
+            description: 'Traiter les demandes de devis',
+            icon: '📋',
+            path: '/commercial/devis',
+            color: 'bg-blue-500'
+          },
+          {
+            name: 'Gestion Produits',
+            description: 'Gérer le catalogue de produits',
+            icon: '🌾',
+            path: '/commercial/produits',
+            color: 'bg-green-500'
+          },
+          {
+            name: 'Gestion Minotiers',
+            description: 'Gérer les fournisseurs',
+            icon: '🏭',
+            path: '/commercial/minotiers',
+            color: 'bg-purple-500'
+          },
+          {
+            name: 'Analytics',
+            description: 'Consulter les statistiques',
+            icon: '📊',
+            path: '/commercial/analytics',
+            color: 'bg-indigo-500'
+          }
+        ];
+
+      case ROLES.APPROVISIONNEMENT:
+        return [
+          ...baseModules,
+          {
+            name: 'Stocks',
+            description: 'Gérer les niveaux de stock',
+            icon: '📦',
+            path: '/approvisionnement/stocks',
+            color: 'bg-blue-500'
+          },
+          {
+            name: 'Livraisons',
+            description: 'Planifier les livraisons',
+            icon: '🚚',
+            path: '/approvisionnement/livraisons',
+            color: 'bg-green-500'
+          },
+          {
+            name: 'Réception',
+            description: 'Gérer les réceptions',
+            icon: '📥',
+            path: '/approvisionnement/reception',
+            color: 'bg-yellow-500'
+          },
+          {
+            name: 'Bons de Transport',
+            description: 'Générer les bons de transport',
+            icon: '📄',
+            path: '/approvisionnement/bons-transport',
+            color: 'bg-purple-500'
+          }
+        ];
+
+      case ROLES.PREPARATION:
+        return [
+          ...baseModules,
+          {
+            name: 'Commandes à Préparer',
+            description: 'Voir les commandes en attente',
+            icon: '📦',
+            path: '/preparation/commandes',
+            color: 'bg-blue-500'
+          },
+          {
+            name: 'Bons de Livraison',
+            description: 'Générer les bons de livraison',
+            icon: '📄',
+            path: '/preparation/bons-livraison',
+            color: 'bg-green-500'
+          },
+          {
+            name: 'QR Codes',
+            description: 'Imprimer les QR codes',
+            icon: '📱',
+            path: '/preparation/qr-codes',
+            color: 'bg-yellow-500'
+          },
+          {
+            name: 'Détail Commande',
+            description: 'Voir les détails des commandes',
+            icon: '🔍',
+            path: '/preparation/detail-commande',
+            color: 'bg-purple-500'
+          }
+        ];
+
+      case ROLES.MAINTENANCE:
+        return [
+          ...baseModules,
+          {
+            name: 'Gestion Camions',
+            description: 'Maintenir la flotte de camions',
+            icon: '🚛',
+            path: '/maintenance/camions',
+            color: 'bg-blue-500'
+          },
+          {
+            name: 'Gestion Cuves',
+            description: 'Entretenir les cuves de stockage',
+            icon: '🛢️',
+            path: '/maintenance/cuves',
+            color: 'bg-green-500'
+          },
+          {
+            name: 'Nettoyage Cuve',
+            description: 'Planifier les nettoyages',
+            icon: '🧹',
+            path: '/maintenance/nettoyage',
+            color: 'bg-yellow-500'
+          },
+          {
+            name: 'Interventions',
+            description: 'Gérer les interventions',
+            icon: '🔧',
+            path: '/maintenance/interventions',
+            color: 'bg-red-500'
+          }
+        ];
+
+      default:
+        return baseModules;
     }
-
-    // Modules spécifiques aux commerciaux
-    if (user.role === ROLES.COMMERCIAL) {
-      modules.push(
-        {
-          name: 'Produits',
-          description: 'Gérez le catalogue produits',
-          icon: '📦',
-          path: '/commercial/produits',
-          color: 'bg-purple-500'
-        },
-        {
-          name: 'Devis',
-          description: 'Traitez les demandes de devis',
-          icon: '📋',
-          path: '/commercial/devis',
-          color: 'bg-indigo-500'
-        },
-        {
-          name: 'Clients',
-          description: 'Gérez vos clients boulangers',
-          icon: '👥',
-          path: '/commercial/clients',
-          color: 'bg-green-500'
-        }
-      );
-    }
-
-    // Modules spécifiques aux approvisionneurs
-    if (user.role === ROLES.APPROVISIONNEMENT) {
-      modules.push(
-        {
-          name: 'Stocks',
-          description: 'Gérez les stocks et approvisionnements',
-          icon: '🏭',
-          path: '/approvisionnement/stocks',
-          color: 'bg-orange-500'
-        },
-        {
-          name: 'Transport',
-          description: 'Planifiez les livraisons',
-          icon: '🚚',
-          path: '/approvisionnement/livraisons',
-          color: 'bg-yellow-500'
-        },
-        {
-          name: 'Réception',
-          description: 'Réceptionnez les commandes',
-          icon: '📦',
-          path: '/approvisionnement/reception-commande',
-          color: 'bg-green-500'
-        }
-      );
-    }
-
-    // Modules spécifiques à la préparation
-    if (user.role === ROLES.PREPARATION) {
-      modules.push(
-        {
-          name: 'Commandes',
-          description: 'Commandes à préparer',
-          icon: '📋',
-          path: '/preparation/commandes',
-          color: 'bg-indigo-500'
-        },
-        {
-          name: 'Bons de livraison',
-          description: 'Générez les bons de livraison',
-          icon: '📄',
-          path: '/preparation/bons-livraison',
-          color: 'bg-green-500'
-        },
-        {
-          name: 'QR Codes',
-          description: 'Générez des QR codes pour les palettes',
-          icon: '📱',
-          path: '/preparation/qr-code',
-          color: 'bg-purple-500'
-        }
-      );
-    }
-
-    // Modules spécifiques à la maintenance
-    if (user.role === ROLES.MAINTENANCE) {
-      modules.push(
-        {
-          name: 'Cuves',
-          description: 'Suivi du nettoyage des cuves',
-          icon: '🧹',
-          path: '/maintenance/cuves',
-          color: 'bg-yellow-500'
-        },
-        {
-          name: 'Véhicules',
-          description: 'Maintenance des camions',
-          icon: '🚛',
-          path: '/maintenance/camions',
-          color: 'bg-red-500'
-        },
-        {
-          name: 'Indicateurs',
-          description: 'Indicateurs de maintenance',
-          icon: '📈',
-          path: '/maintenance/indicateurs',
-          color: 'bg-blue-500'
-        }
-      );
-    }
-
-    return modules;
   };
 
   /**
-   * Affichage du tableau de bord
-   * 
-   * Cette fonction retourne l'interface utilisateur du tableau de bord,
-   * incluant les modules adaptés au rôle de l'utilisateur.
-   * 
-   * @returns {JSX.Element} Interface utilisateur du tableau de bord
+   * Obtient le message de bienvenue selon le rôle
    */
+  const getWelcomeMessage = () => {
+    const timeOfDay = new Date().getHours();
+    let greeting = 'Bonjour';
+    
+    if (timeOfDay < 12) {
+      greeting = 'Bonjour';
+    } else if (timeOfDay < 18) {
+      greeting = 'Bon après-midi';
+    } else {
+      greeting = 'Bonsoir';
+    }
+
+    const roleNames = {
+      [ROLES.BOULANGER]: 'Boulanger',
+      [ROLES.COMMERCIAL]: 'Commercial',
+      [ROLES.APPROVISIONNEMENT]: 'Responsable Approvisionnement',
+      [ROLES.PREPARATION]: 'Responsable Préparation',
+      [ROLES.MAINTENANCE]: 'Responsable Maintenance'
+    };
+
+    return `${greeting} ${user?.firstName || 'Utilisateur'} ! Bienvenue dans votre espace ${roleNames[user?.role] || 'utilisateur'}.`;
+  };
+
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* En-tête du tableau de bord */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">
-          Bonjour, {user?.firstName} 👋
-        </h1>
-        <p className="text-gray-600 mt-1">
-          Bienvenue sur votre tableau de bord {
-            user?.role === ROLES.BOULANGER ? 'boulanger' :
-            user?.role === ROLES.COMMERCIAL ? 'commercial' :
-            user?.role === ROLES.APPROVISIONNEMENT ? 'approvisionneur' :
-            user?.role === ROLES.PREPARATION ? 'préparation' :
-            user?.role === ROLES.MAINTENANCE ? 'maintenance' :
-            ''
-          }
-        </p>
-      </div>
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        {/* En-tête */}
+        <div className="px-4 py-6 sm:px-0">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900">
+              Tableau de bord
+            </h1>
+            <p className="mt-2 text-gray-600">
+              {getWelcomeMessage()}
+            </p>
+          </div>
 
-      {/* Grille des modules */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {getModules().map((module, index) => (
-          <Link
-            key={index}
-            to={module.path}
-            className="block group"
-          >
-            <div className={`${module.color} rounded-lg p-6 text-white transform transition-all duration-300 hover:scale-105 hover:shadow-lg`}>
-              <div className="text-4xl mb-4">{module.icon}</div>
-              <h3 className="text-xl font-semibold mb-2">{module.name}</h3>
-              <p className="text-white text-opacity-90">{module.description}</p>
+          {/* Statistiques */}
+          <div className="mb-8">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">
+              Statistiques
+            </h2>
+            <DashboardStats userRole={user?.role} />
+          </div>
+
+          {/* Grille des modules */}
+          <div className="mb-8">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">
+              Accès rapide
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {getModules().map((module, index) => (
+                <Link
+                  key={index}
+                  to={module.path}
+                  className="block group"
+                >
+                  <div className={`${module.color} rounded-lg p-6 text-white transform transition-all duration-300 hover:scale-105 hover:shadow-lg`}>
+                    <div className="text-4xl mb-4">{module.icon}</div>
+                    <h3 className="text-xl font-semibold mb-2">{module.name}</h3>
+                    <p className="text-white text-opacity-90">{module.description}</p>
+                  </div>
+                </Link>
+              ))}
             </div>
-          </Link>
-        ))}
-      </div>
-
-      {/* Statistiques rapides */}
-      <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="text-sm font-medium text-gray-500 mb-1">
-            {user?.role === ROLES.BOULANGER ? 'Commandes en cours' :
-             user?.role === ROLES.COMMERCIAL ? 'Devis à traiter' :
-             user?.role === ROLES.APPROVISIONNEMENT ? 'Livraisons du jour' :
-             user?.role === ROLES.PREPARATION ? 'Commandes à préparer' :
-             user?.role === ROLES.MAINTENANCE ? 'Interventions à planifier' :
-             ''}
           </div>
-          <div className="text-3xl font-bold text-gray-900">0</div>
-        </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="text-sm font-medium text-gray-500 mb-1">
-            {user?.role === ROLES.BOULANGER ? 'Devis en attente' :
-             user?.role === ROLES.COMMERCIAL ? 'Nouveaux clients' :
-             user?.role === ROLES.APPROVISIONNEMENT ? 'Stocks à surveiller' :
-             user?.role === ROLES.PREPARATION ? 'Bons de livraison à générer' :
-             user?.role === ROLES.MAINTENANCE ? 'Équipements à entretenir' :
-             ''}
-          </div>
-          <div className="text-3xl font-bold text-gray-900">0</div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="text-sm font-medium text-gray-500 mb-1">
-            {user?.role === ROLES.BOULANGER ? 'Total commandes' :
-             user?.role === ROLES.COMMERCIAL ? 'Chiffre d\'affaires' :
-             user?.role === ROLES.APPROVISIONNEMENT ? 'Taux de livraison' :
-             user?.role === ROLES.PREPARATION ? 'Commandes préparées' :
-             user?.role === ROLES.MAINTENANCE ? 'Interventions effectuées' :
-             ''}
-          </div>
-          <div className="text-3xl font-bold text-gray-900">
-            {user?.role === ROLES.COMMERCIAL ? '0 €' : '0'}
+          {/* Notifications importantes */}
+          <div className="mb-8">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">
+              Notifications importantes
+            </h2>
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <svg className="h-6 w-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-blue-800">
+                    Système opérationnel
+                  </h3>
+                  <p className="text-sm text-blue-700 mt-1">
+                    Tous les services sont fonctionnels. Aucune maintenance prévue.
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
   );
-};
-
-export default Dashboard;
+}

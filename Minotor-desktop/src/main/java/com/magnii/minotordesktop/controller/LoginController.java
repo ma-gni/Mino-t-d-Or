@@ -2,6 +2,7 @@ package com.magnii.minotordesktop.controller;
 
 import com.magnii.minotordesktop.model.AuthResponse;
 import com.magnii.minotordesktop.service.ApiService;
+
 import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
@@ -14,7 +15,7 @@ public class LoginController {
     @FXML private PasswordField passwordField;
     @FXML private Button loginButton;
     
-    private final ApiService apiService = new ApiService("http://localhost:8080/api/");
+    private final ApiService apiService = new ApiService("http://localhost:8081/api/");
     private AuthResponse currentUser;
 
     @FXML

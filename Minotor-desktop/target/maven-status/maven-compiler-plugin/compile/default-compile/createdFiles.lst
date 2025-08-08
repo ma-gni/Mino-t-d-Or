@@ -1,4 +1,11 @@
-com\magnii\minotordesktop\controller\MainViewController.class
+com\magnii\minotordesktop\controller\LoginController.class
+com\magnii\minotordesktop\model\OrderDto.class
 com\magnii\minotordesktop\model\PageVisitDto.class
+com\magnii\minotordesktop\model\UserDto.class
+com\magnii\minotordesktop\model\StockDto.class
+com\magnii\minotordesktop\model\ProductDto.class
+com\magnii\minotordesktop\controller\MainViewController.class
 com\magnii\minotordesktop\Main.class
+com\magnii\minotordesktop\model\AuthResponse.class
+com\magnii\minotordesktop\model\AnalyticsDto.class
 com\magnii\minotordesktop\service\ApiService.class
