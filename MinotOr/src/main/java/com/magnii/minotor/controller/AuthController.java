@@ -23,6 +23,9 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -89,6 +92,50 @@ public class AuthController {
 
         JwtResponse response = new JwtResponse(token, userDetails.getUsername(), mappedRole);
         return ResponseEntity.ok(response);
+    }
+
+    // Endpoint de test pour vérifier l'état des utilisateurs
+    @PostMapping("/test-user")
+    public ResponseEntity<?> testUser(@RequestBody LoginRequest req) {
+        try {
+            Optional<User> userOpt = userRepository.findByUsername(req.getUsername());
+            if (userOpt.isEmpty()) {
+                return ResponseEntity.badRequest().body("Utilisateur non trouvé: " + req.getUsername());
+            }
+            
+            User user = userOpt.get();
+            boolean passwordMatches = passwordEncoder.matches(req.getPassword(), user.getPassword());
+            
+            // Vérifier si le rôle ROLE_DRIVER existe
+            Optional<Role> driverRole = roleRepository.findByName("ROLE_DRIVER");
+            
+            // Si le rôle n'existe pas, le créer
+            if (driverRole.isEmpty()) {
+                // Créer le rôle ROLE_DRIVER
+                Role newRole = new Role();
+                // Utiliser la réflexion pour accéder au champ privé
+                try {
+                    java.lang.reflect.Field nameField = Role.class.getDeclaredField("name");
+                    nameField.setAccessible(true);
+                    nameField.set(newRole, "ROLE_DRIVER");
+                    roleRepository.save(newRole);
+                } catch (Exception e) {
+                    // Si la réflexion échoue, on continue sans créer le rôle
+                }
+            }
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("username", user.getUsername());
+            response.put("email", user.getEmail());
+            response.put("activated", user.isActivated());
+            response.put("rolesCount", user.getRoles().size());
+            response.put("passwordMatches", passwordMatches);
+            response.put("driverRoleCreated", driverRole.isEmpty());
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("Erreur: " + e.getMessage());
+        }
     }
 
     @PutMapping("/users/{id}/activate")

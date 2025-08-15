@@ -44,7 +44,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         // Allow login and registration
-                        .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
+                        .requestMatchers("/api/auth/login", "/api/auth/register", "/api/auth/test-user").permitAll()
 
                         // Allow activation via ID path
                         .requestMatchers(HttpMethod.PUT, "/api/auth/users/**").permitAll()
@@ -57,7 +57,7 @@ public class SecurityConfig {
 
                         // Desktop app endpoints (temporarily allow without auth for testing)
                         .requestMatchers("/api/analytics", "/api/orders", "/api/products", 
-                                       "/api/users", "/api/stocks", "/api/page-visits").permitAll()
+                                       "/api/users", "/api/stocks", "/api/page-visits", "/api/roles").permitAll()
 
                         // Mobile app endpoints (temporarily allow without auth for testing)
                         .requestMatchers("/api/deliveries", "/api/deliveries/**", 

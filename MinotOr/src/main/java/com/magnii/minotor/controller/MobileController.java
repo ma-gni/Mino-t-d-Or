@@ -7,6 +7,7 @@ import com.magnii.minotor.dto.NotificationDTO;
 import com.magnii.minotor.service.DeliveryService;
 import com.magnii.minotor.service.UserService;
 import com.magnii.minotor.service.MobileService;
+import com.magnii.minotor.service.NotificationService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,15 +23,17 @@ public class MobileController {
     private final DeliveryService deliveryService;
     private final UserService userService;
     private final MobileService mobileService;
+    private final NotificationService notificationService;
 
-    public MobileController(DeliveryService deliveryService, UserService userService, MobileService mobileService) {
+    public MobileController(DeliveryService deliveryService, UserService userService, MobileService mobileService, NotificationService notificationService) {
         this.deliveryService = deliveryService;
         this.userService = userService;
         this.mobileService = mobileService;
+        this.notificationService = notificationService;
     }
 
     // Récupérer les livraisons actives pour un livreur
-    @GetMapping("/deliveries/active")
+    @GetMapping("/deliveries")
     public ResponseEntity<List<DeliveryDTO>> getActiveDeliveriesForDriver() {
         List<DeliveryDTO> activeDeliveries = mobileService.getActiveDeliveriesForDriver();
         return ResponseEntity.ok(activeDeliveries);
@@ -104,15 +107,36 @@ public class MobileController {
         return ResponseEntity.ok(List.of()); // Liste vide pour la démo
     }
 
+    // Envoyer une notification
+    @PostMapping("/notifications/send")
+    public ResponseEntity<Map<String, Object>> sendNotification(@RequestBody Map<String, Object> notificationData) {
+        try {
+            Map<String, Object> response = notificationService.sendNotification(notificationData);
+            
+            if ((Boolean) response.get("success")) {
+                return ResponseEntity.ok(response);
+            } else {
+                return ResponseEntity.badRequest().body(response);
+            }
+        } catch (Exception e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("error", "Erreur lors de l'envoi de la notification");
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
     // Marquer une notification comme lue
     @PutMapping("/notifications/{notificationId}/read")
     public ResponseEntity<Map<String, Object>> markNotificationAsRead(@PathVariable Long notificationId) {
         try {
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", true);
-            response.put("message", "Notification marquée comme lue");
+            Map<String, Object> response = notificationService.markNotificationAsRead(notificationId);
             
-            return ResponseEntity.ok(response);
+            if ((Boolean) response.get("success")) {
+                return ResponseEntity.ok(response);
+            } else {
+                return ResponseEntity.badRequest().body(response);
+            }
         } catch (Exception e) {
             Map<String, Object> response = new HashMap<>();
             response.put("success", false);

@@ -40,6 +40,23 @@ public class MobileService {
     public Map<String, Object> confirmDelivery(Long deliveryId) {
         try {
             DeliveryDTO delivery = deliveryService.getDeliveryById(deliveryId);
+            
+            // Vérifier que la livraison existe et n'est pas déjà livrée
+            if (delivery == null) {
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", false);
+                response.put("error", "Livraison introuvable");
+                return response;
+            }
+            
+            if ("DELIVERED".equals(delivery.getStatus())) {
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", false);
+                response.put("error", "La livraison est déjà confirmée");
+                return response;
+            }
+            
+            // Mettre à jour le statut
             delivery.setStatus("DELIVERED");
             DeliveryDTO updated = deliveryService.updateDelivery(delivery);
             
@@ -52,7 +69,7 @@ public class MobileService {
         } catch (Exception e) {
             Map<String, Object> response = new HashMap<>();
             response.put("success", false);
-            response.put("error", "Erreur lors de la confirmation de la livraison");
+            response.put("error", "Erreur lors de la confirmation de la livraison: " + e.getMessage());
             return response;
         }
     }
