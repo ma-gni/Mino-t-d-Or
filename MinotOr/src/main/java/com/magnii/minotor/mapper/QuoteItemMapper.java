@@ -8,9 +8,8 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = "spring")
 public interface QuoteItemMapper {
 
-    @Mapping(source = "product.id", target = "productId")
-    QuoteItemDTO toDto(QuoteItem quoteItem);
+    @Mapping(target = "productId", source = "product.id")
+    @Mapping(target = "quantity",  source = "quantity")
+    QuoteItemDTO toDto(QuoteItem item);
 
-    @Mapping(source = "productId", target = "product.id")
-    QuoteItem toEntity(QuoteItemDTO dto);
 }

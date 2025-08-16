@@ -15,7 +15,6 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.web.cors.CorsConfiguration;
 
 import java.util.List;
-
 @Configuration
 public class SecurityConfig {
 
@@ -39,27 +38,17 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .cors(cors -> cors.configurationSource(request -> {
-                    CorsConfiguration corsConfig = new CorsConfiguration();
-                    corsConfig.setAllowedOrigins(List.of("http://localhost:3000"));
-                    corsConfig.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-                    corsConfig.setAllowedHeaders(List.of("*"));
-                    corsConfig.setAllowCredentials(true);
-                    return corsConfig;
+                    CorsConfiguration c = new CorsConfiguration();
+                    c.setAllowedOrigins(List.of("http://localhost:3000"));
+                    c.setAllowedMethods(List.of("GET","POST","PUT","DELETE","PATCH","OPTIONS"));
+                    c.setAllowedHeaders(List.of("Authorization","Content-Type","Accept"));
+                    c.setAllowCredentials(true);
+                    return c;
                 }))
                 .csrf(csrf -> csrf.disable())
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Allow login and registration
-                        .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
-
-                        // 🔥 FIXED: Allow activation via ID path
-                        .requestMatchers(HttpMethod.PUT, "/api/auth/users/**").permitAll()
-
-                        // Swagger access
-                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
-
-                        // Everything else requires auth
-                        .anyRequest().authenticated()
+                        .anyRequest().permitAll()  // ✅ allow everything for now
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 

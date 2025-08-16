@@ -47,17 +47,15 @@ public class AuthController {
             return ResponseEntity.badRequest().body("Username is already taken");
         }
 
-        // Create user
         User user = new User();
         user.setUsername(req.getUsername());
         user.setPassword(passwordEncoder.encode(req.getPassword()));
-        user.setEmail(req.getEmail());             // ✅ Set email
-        user.setAddress(req.getAddress());         // ✅ Set address
+        user.setEmail(req.getEmail());
+        user.setAddress(req.getAddress());
         user.setActivated(false);
 
-        // Assign BOULANGER role by default
         Optional<Role> bakerRole = roleRepository.findByName("ROLE_BOULANGER");
-        if (!bakerRole.isPresent()) {
+        if (bakerRole.isEmpty()) {
             return ResponseEntity.internalServerError().body("Default role not found");
         }
         user.setRoles(new HashSet<>(Set.of(bakerRole.get())));
@@ -72,6 +70,9 @@ public class AuthController {
                 new UsernamePasswordAuthenticationToken(req.getUsername(), req.getPassword()));
 
         UserDetails userDetails = (UserDetails) auth.getPrincipal();
+        User user = userRepository.findByUsername(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
         String token = jwtUtils.generateToken(userDetails);
 
         String rawRole = userDetails.getAuthorities().stream()
@@ -81,35 +82,7 @@ public class AuthController {
 
         String mappedRole = mapRoleToFrontend(rawRole);
 
-        JwtResponse response = new JwtResponse(token, userDetails.getUsername(), mappedRole);
-        return ResponseEntity.ok(response);
-    }
-
-    @PutMapping("/users/{id}/activate")
-    public ResponseEntity<?> activate(@PathVariable Long id) {
-        Optional<User> userOpt = userRepository.findById(id);
-        if (userOpt.isEmpty()) {
-            return ResponseEntity.notFound().build();
-        }
-        User user = userOpt.get();
-        user.setActivated(true);
-        userRepository.save(user);
-        return ResponseEntity.ok("User activated");
-    }
-
-    @PutMapping("/users/{id}/assign-role")
-    public ResponseEntity<?> assignRole(@PathVariable Long id, @RequestParam String roleName) {
-        Optional<User> userOpt = userRepository.findById(id);
-        Optional<Role> roleOpt = roleRepository.findByName(roleName);
-
-        if (userOpt.isEmpty() || roleOpt.isEmpty()) {
-            return ResponseEntity.notFound().build();
-        }
-
-        User user = userOpt.get();
-        user.getRoles().add(roleOpt.get());
-        userRepository.save(user);
-        return ResponseEntity.ok("Role assigned");
+        return ResponseEntity.ok(new JwtResponse(token, user.getId(), user.getUsername(), mappedRole));
     }
 
     private String mapRoleToFrontend(String backendRole) {
@@ -124,8 +97,6 @@ public class AuthController {
             default -> "user";
         };
     }
-
-    // DTOs
 
     public static class RegisterRequest {
         private String username;
@@ -159,16 +130,18 @@ public class AuthController {
 
     public static class JwtResponse {
         private String token;
+        private Long id;
         private String username;
         private String role;
 
-        public JwtResponse(String token, String username, String role) {
+        public JwtResponse(String token, Long id, String username, String role) {
             this.token = token;
+            this.id = id;
             this.username = username;
             this.role = role;
         }
-
         public String getToken() { return token; }
+        public Long getId() { return id; }
         public String getUsername() { return username; }
         public String getRole() { return role; }
     }
