@@ -1,0 +1,4 @@
+com\magnii\minotordesktop\controller\MainViewController.class
+com\magnii\minotordesktop\model\PageVisitDto.class
+com\magnii\minotordesktop\Main.class
+com\magnii\minotordesktop\service\ApiService.class

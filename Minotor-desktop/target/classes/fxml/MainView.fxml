@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.DatePicker?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.ProgressIndicator?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TabPane?>
+<?import javafx.scene.control.Tab?>
+<?import javafx.scene.chart.BarChart?>
+<?import javafx.scene.chart.CategoryAxis?>
+<?import javafx.scene.chart.NumberAxis?>
+<?import javafx.scene.chart.XYChart?>
+<?import javafx.collections.FXCollections?>
+<StackPane fx:id="rootPane" xmlns:fx="http://javafx.com/fxml" fx:controller="com.magnii.minotordesktop.controller.MainViewController" prefWidth="1000.0" prefHeight="700.0">
+    <children>
+        <AnchorPane prefWidth="1000.0" prefHeight="700.0">
+            <children>
+                <Button fx:id="themeToggleButton" text="🌙" layoutX="930" layoutY="10" prefWidth="40" onAction="#onToggleTheme" />
+                <Button fx:id="refreshButton" text="Rafraîchir" layoutX="50" layoutY="10" prefWidth="120" onAction="#onRefresh" />
+                <TextField fx:id="searchField" promptText="Rechercher une page..." layoutX="200" layoutY="10" prefWidth="200" onKeyReleased="#onSearch" />
+                <TextField fx:id="visitorSearchField" promptText="Rechercher un visiteur..." layoutX="410" layoutY="10" prefWidth="100" onKeyReleased="#onSearch" />
+                <DatePicker fx:id="startDatePicker" promptText="Date début" layoutX="520" layoutY="10" prefWidth="120" onAction="#onDateFilter" />
+                <DatePicker fx:id="endDatePicker" promptText="Date fin" layoutX="650" layoutY="10" prefWidth="120" onAction="#onDateFilter" />
+                <Button fx:id="resetFiltersButton" text="Réinitialiser filtres" layoutX="780" layoutY="10" prefWidth="170" onAction="#onResetFilters" />
+                <ComboBox fx:id="groupByComboBox" layoutX="780" layoutY="50" prefWidth="170" onAction="#onGroupBy" />
+                <TabPane layoutX="50" layoutY="90" prefWidth="900" prefHeight="560">
+                    <tabs>
+                        <Tab text="Table">
+                            <content>
+                                <TableView fx:id="pageVisitTable" prefWidth="900" prefHeight="560">
+                                    <columns>
+                                        <TableColumn fx:id="pageNameColumn" text="Page" prefWidth="300" />
+                                        <TableColumn fx:id="visitDateTimeColumn" text="Date/Heure" prefWidth="300" />
+                                        <TableColumn fx:id="visitorIdColumn" text="Visiteur" prefWidth="300" />
+                                    </columns>
+                                </TableView>
+                            </content>
+                        </Tab>
+                        <Tab text="Graphique">
+                            <content>
+                                <BarChart fx:id="barChart" prefWidth="900" prefHeight="560">
+                                    <xAxis>
+                                        <CategoryAxis fx:id="xAxis" label="Page" />
+                                    </xAxis>
+                                    <yAxis>
+                                        <NumberAxis fx:id="yAxis" label="Nombre de visites" />
+                                    </yAxis>
+                                </BarChart>
+                            </content>
+                        </Tab>
+                    </tabs>
+                </TabPane>
+                <Button fx:id="exportCsvButton" text="Exporter CSV" layoutX="50" layoutY="660" prefWidth="120" onAction="#onExportCsv" />
+                <Button fx:id="exportSelectedCsvButton" text="Exporter sélection" layoutX="180" layoutY="660" prefWidth="170" onAction="#onExportSelectedCsv" />
+                <Button fx:id="exportPdfButton" text="Exporter PDF" layoutX="360" layoutY="660" prefWidth="120" onAction="#onExportPdf" />
+                <Button fx:id="printButton" text="Imprimer" layoutX="490" layoutY="660" prefWidth="120" onAction="#onPrint" />
+                <Button fx:id="printChartButton" text="Imprimer graphique" layoutX="620" layoutY="660" prefWidth="170" onAction="#onPrintChart" />
+                <Button fx:id="deleteSelectedButton" text="Supprimer sélection" layoutX="800" layoutY="660" prefWidth="150" onAction="#onDeleteSelected" />
+                <ProgressIndicator fx:id="loader" layoutX="475" layoutY="350" visible="false" />
+                <Button fx:id="prevPageButton" text="Page précédente" layoutX="400" layoutY="660" prefWidth="120" onAction="#onPrevPage" />
+                <Label fx:id="pageLabel" text="Page 1" layoutX="530" layoutY="665" prefWidth="80" />
+                <Button fx:id="nextPageButton" text="Page suivante" layoutX="620" layoutY="660" prefWidth="120" onAction="#onNextPage" />
+            </children>
+        </AnchorPane>
+    </children>
+</StackPane> 
