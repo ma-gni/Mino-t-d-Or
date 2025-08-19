@@ -80,7 +80,6 @@ public class DeliveryControllerIntegrationTest {
     public void testCreateAndGetDelivery() throws Exception {
         DeliveryDTO deliveryDTO = new DeliveryDTO();
         deliveryDTO.setOrderId(dummyOrderId);
-        deliveryDTO.setStatus("PREPARING");
         deliveryDTO.setAddress("123 Delivery St");
 
         String json = objectMapper.writeValueAsString(deliveryDTO);
@@ -107,7 +106,6 @@ public class DeliveryControllerIntegrationTest {
     public void testUpdateDelivery() throws Exception {
         DeliveryDTO deliveryDTO = new DeliveryDTO();
         deliveryDTO.setOrderId(dummyOrderId);
-        deliveryDTO.setStatus("PREPARING");
         deliveryDTO.setAddress("Initial Address");
 
         String json = objectMapper.writeValueAsString(deliveryDTO);
@@ -121,7 +119,6 @@ public class DeliveryControllerIntegrationTest {
 
         DeliveryDTO createdDelivery = objectMapper.readValue(postResult.getResponse().getContentAsString(), DeliveryDTO.class);
 
-        createdDelivery.setStatus("SHIPPED");
         createdDelivery.setAddress("456 New Address");
 
         String updateJson = objectMapper.writeValueAsString(createdDelivery);
@@ -139,7 +136,6 @@ public class DeliveryControllerIntegrationTest {
     public void testDeleteDelivery() throws Exception {
         DeliveryDTO deliveryDTO = new DeliveryDTO();
         deliveryDTO.setOrderId(dummyOrderId);
-        deliveryDTO.setStatus("PREPARING");
         deliveryDTO.setAddress("123 Delivery St");
 
         String json = objectMapper.writeValueAsString(deliveryDTO);

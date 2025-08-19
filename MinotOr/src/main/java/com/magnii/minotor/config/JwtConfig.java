@@ -26,8 +26,6 @@ public class JwtConfig {
     @Bean
     public JwtEncoder jwtEncoder() {
         SecretKey key = new SecretKeySpec(jwtSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
-
-        // 🔥 Fix: add key ID
         OctetSequenceKey jwk = new OctetSequenceKey.Builder(key)
                 .keyID("minotor-key-id") // key ID is required
                 .build();

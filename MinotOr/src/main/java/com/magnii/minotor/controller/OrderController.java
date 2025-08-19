@@ -29,6 +29,7 @@ public class OrderController {
 
     @GetMapping
     public ResponseEntity<List<OrderDTO>> getAllOrders() {
+
         return ResponseEntity.ok(orderService.getAllOrders());
     }
 

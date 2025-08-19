@@ -3,81 +3,92 @@ package com.magnii.minotor.service;
 import com.magnii.minotor.dto.DeliveryDTO;
 import com.magnii.minotor.mapper.DeliveryMapper;
 import com.magnii.minotor.model.Delivery;
-import com.magnii.minotor.model.Order;
+import com.magnii.minotor.model.DeliveryStatus;
 import com.magnii.minotor.repository.DeliveryRepository;
-import com.magnii.minotor.repository.OrderRepository;
-import org.springframework.http.HttpStatus;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
+@Transactional
 public class DeliveryService {
+
     private final DeliveryRepository deliveryRepository;
-    private final DeliveryMapper deliveryMapper;
-    private final OrderRepository orderRepository;
+    private final DeliveryMapper mapper;
 
-    public DeliveryService(DeliveryRepository deliveryRepository,
-                           DeliveryMapper deliveryMapper,
-                           OrderRepository orderRepository) {
-        this.deliveryRepository = deliveryRepository;
-        this.deliveryMapper = deliveryMapper;
-        this.orderRepository = orderRepository;
-    }
-
-    public List<DeliveryDTO> getAllDeliveries() {
-        return deliveryMapper.toDto(deliveryRepository.findAll());
-    }
-
-    public DeliveryDTO getDeliveryById(long id) {
-        return deliveryRepository.findById(id)
-                .map(deliveryMapper::toDto)
-                .orElseThrow(() ->
-                        new ResponseStatusException(HttpStatus.NOT_FOUND, "Delivery not found")
-                );
-    }
-
-    public DeliveryDTO createDelivery(DeliveryDTO dto) {
-        // map DTO → entity (orderId still in dto)
-        Delivery delivery = deliveryMapper.toEntity(dto);
-
-        // lookup order or 404
-        Order order = orderRepository.findById(dto.getOrderId())
-                .orElseThrow(() ->
-                        new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found")
-                );
-        delivery.setOrder(order);
-
-        // persist
-        Delivery saved = deliveryRepository.save(delivery);
-        return deliveryMapper.toDto(saved);
-    }
-
-    public DeliveryDTO updateDelivery(DeliveryDTO dto) {
-        Delivery existing = deliveryRepository.findById(dto.getId())
-                .orElseThrow(() ->
-                        new ResponseStatusException(HttpStatus.NOT_FOUND, "Delivery not found")
-                );
-
-        try {
-            existing.setStatus(Delivery.DeliveryStatus.valueOf(dto.getStatus()));
-        } catch (IllegalArgumentException iae) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Invalid delivery status: " + dto.getStatus()
-            );
+    public DeliveryDTO create(DeliveryDTO dto) {
+        Delivery entity = mapper.toEntity(dto);
+        if (entity.getStatus() == null) {
+            entity.setStatus(DeliveryStatus.PENDING);
         }
-
-        existing.setAddress(dto.getAddress());
-        Delivery updated = deliveryRepository.save(existing);
-        return deliveryMapper.toDto(updated);
+        return mapper.toDto(deliveryRepository.save(entity));
     }
 
-    public void deleteDelivery(long id) {
-        if (!deliveryRepository.existsById(id)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Delivery not found");
+    public DeliveryDTO createForPaidOrder(Long orderId,
+                                          Long clientId,
+                                          String clientUsername,
+                                          String address,
+                                          LocalDate scheduledDate) {
+        Delivery entity = Delivery.builder()
+                .clientId(clientId)
+                .clientUsername(clientUsername)
+                .address(address)
+                .scheduledDate(scheduledDate)
+                .status(DeliveryStatus.PENDING)
+                .build();
+        return mapper.toDto(deliveryRepository.save(entity));
+    }
+
+    @Transactional(readOnly = true)
+    public DeliveryDTO get(Long id) {
+        return deliveryRepository.findById(id).map(mapper::toDto).orElse(null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<DeliveryDTO> listAll() {
+        return deliveryRepository.findAll().stream().map(mapper::toDto).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<DeliveryDTO> listByClient(Long clientId) {
+        return deliveryRepository.findByClientId(clientId).stream().map(mapper::toDto).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<DeliveryDTO> listByStatus(DeliveryStatus status) {
+        return deliveryRepository.findByStatus(status).stream().map(mapper::toDto).toList();
+    }
+
+    public DeliveryDTO updateStatus(Long id, DeliveryStatus status, LocalDate deliveredDate) {
+        Delivery d = deliveryRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Delivery not found: " + id));
+        d.setStatus(status);
+        if (status == DeliveryStatus.DELIVERED) {
+            d.setDeliveredDate(deliveredDate != null ? deliveredDate : LocalDate.now());
         }
+        return mapper.toDto(d);
+    }
+
+    public DeliveryDTO updateTracking(Long id, String carrierName, String trackingNumber) {
+        Delivery d = deliveryRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Delivery not found: " + id));
+        d.setCarrierName(carrierName);
+        d.setTrackingNumber(trackingNumber);
+        return mapper.toDto(d);
+    }
+
+    public DeliveryDTO updateAddress(Long id, String address) {
+        Delivery d = deliveryRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Delivery not found: " + id));
+        d.setAddress(address);
+        return mapper.toDto(d);
+    }
+
+    public void delete(Long id) {
         deliveryRepository.deleteById(id);
     }
 }

@@ -4,6 +4,8 @@ import com.magnii.minotor.dto.DeliveryDTO;
 import com.magnii.minotor.model.Delivery;
 import org.mapstruct.Mapper;
 
-@Mapper(componentModel = "spring", uses = {OrderMapper.class})
-public interface DeliveryMapper extends EntityMapper<DeliveryDTO, Delivery> {
+@Mapper(componentModel = "spring")
+public interface DeliveryMapper {
+    DeliveryDTO toDto(Delivery delivery);
+    Delivery toEntity(DeliveryDTO dto);
 }
