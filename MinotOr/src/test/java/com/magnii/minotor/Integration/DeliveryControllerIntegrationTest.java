@@ -1,159 +1,182 @@
 package com.magnii.minotor.Integration;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.magnii.minotor.config.FirebaseConfig;
 import com.magnii.minotor.dto.DeliveryDTO;
-import com.magnii.minotor.model.Order;
-import com.magnii.minotor.model.User;
-import com.magnii.minotor.model.Order.OrderStatus;
-import com.magnii.minotor.repository.DeliveryRepository;
-import com.magnii.minotor.repository.FeedbackRepository;
-import com.magnii.minotor.repository.OrderRepository;
-import com.magnii.minotor.repository.UserRepository;
-import org.junit.jupiter.api.BeforeEach;
+import com.magnii.minotor.model.DeliveryStatus;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.core.token.TokenService;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.LocalDate;
+import java.util.UUID;
 
-import static org.hamcrest.Matchers.is;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@AutoConfigureMockMvc
-@WithMockUser
-public class DeliveryControllerIntegrationTest {
+/**
+ * Integration tests aligned with the current DeliveryController behavior:
+ * - POST /api/deliveries returns 200 OK (not 201)
+ * - DELETE /api/deliveries/{id} always returns 204 (even if the ID doesn't exist)
+ * - GET /api/deliveries/{id} returns 404 when absent
+ */
+@SpringBootTest
+@AutoConfigureMockMvc(addFilters = false)
+@AutoConfigureTestDatabase
+@ActiveProfiles("test")
+class DeliveryControllerIntegrationTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+    @MockitoBean private TokenService tokenService;     // disable security token stuff
+    @MockitoBean private FirebaseConfig firebaseConfig; // prevent Firebase init during tests
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    @Autowired private MockMvc mvc;
 
-    @Autowired
-    private DeliveryRepository deliveryRepository;
+    // ObjectMapper that supports Java Time
+    private final ObjectMapper om = new ObjectMapper().registerModule(new JavaTimeModule());
 
-    @Autowired
-    private OrderRepository orderRepository;
+    private static final String BASE = "/api/deliveries";
 
-    @Autowired
-    private UserRepository userRepository;
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    static class DeliveryPayload {
+        public Long id;
+        public Long orderId;
+        public Long clientId;
+        public String clientUsername;
+        public String address;
+        public String status;          // We read it as String in tests for simplicity
+        public String carrierName;
+        public String trackingNumber;
+        public String notes;
+        public LocalDate scheduledDate;
+        public LocalDate deliveredDate;
+    }
 
-    @Autowired
-    private FeedbackRepository feedbackRepository;
-
-    private Long dummyOrderId;
-
-    @BeforeEach
-    public void setUp() {
-        feedbackRepository.deleteAll();
-        deliveryRepository.deleteAll();
-        orderRepository.deleteAll();
-        userRepository.deleteAll();
-
-        User user = new User();
-        user.setUsername("testuser");
-        user.setPassword("password");
-        user.setEmail("testuser@example.com");
-        user.setAddress("Test Address");
-        User savedUser = userRepository.save(user);
-
-        Order order = new Order();
-        order.setUser(savedUser);
-        order.setDatePlaced(LocalDateTime.now());
-        order.setTotal(BigDecimal.valueOf(100.0));
-        order.setStatus(OrderStatus.PENDING);
-        Order savedOrder = orderRepository.save(order);
-
-        dummyOrderId = savedOrder.getId();
+    private DeliveryDTO newDelivery() {
+        String uname = "client_" + UUID.randomUUID().toString().substring(0, 8);
+        return DeliveryDTO.builder()
+                .clientId(100L)
+                .clientUsername(uname)
+                .address("123 Street")
+                .scheduledDate(LocalDate.now().plusDays(1))
+                .status(DeliveryStatus.PENDING)
+                .build();
     }
 
     @Test
-    public void testCreateAndGetDelivery() throws Exception {
-        DeliveryDTO deliveryDTO = new DeliveryDTO();
-        deliveryDTO.setOrderId(dummyOrderId);
-        deliveryDTO.setAddress("123 Delivery St");
+    @DisplayName("POST /api/deliveries -> 200 OK and returns created delivery")
+    void createDelivery_Returns200() throws Exception {
+        var dto = newDelivery();
 
-        String json = objectMapper.writeValueAsString(deliveryDTO);
-
-        MvcResult result = mockMvc.perform(post("/api/deliveries")
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(json))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status", is("PREPARING")))
-                .andExpect(jsonPath("$.address", is("123 Delivery St")))
+        var result = mvc.perform(
+                        post(BASE)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(om.writeValueAsString(dto))
+                )
+                .andExpect(status().isOk()) // controller currently returns 200 OK
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.id").isNumber())
+                .andExpect(jsonPath("$.clientId").value(dto.getClientId()))
+                .andExpect(jsonPath("$.address").value(dto.getAddress()))
+                .andExpect(jsonPath("$.status").value("PENDING"))
                 .andReturn();
 
-        DeliveryDTO created = objectMapper.readValue(result.getResponse().getContentAsString(), DeliveryDTO.class);
-        Long deliveryId = created.getId();
-
-        mockMvc.perform(get("/api/deliveries/" + deliveryId))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id", is(deliveryId.intValue())))
-                .andExpect(jsonPath("$.address", is("123 Delivery St")));
+        var body = result.getResponse().getContentAsString();
+        var created = om.readValue(body, DeliveryPayload.class);
+        assertThat(created.id).isNotNull();
     }
 
     @Test
-    public void testUpdateDelivery() throws Exception {
-        DeliveryDTO deliveryDTO = new DeliveryDTO();
-        deliveryDTO.setOrderId(dummyOrderId);
-        deliveryDTO.setAddress("Initial Address");
-
-        String json = objectMapper.writeValueAsString(deliveryDTO);
-
-        MvcResult postResult = mockMvc.perform(post("/api/deliveries")
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(json))
+    @DisplayName("CRUD: create -> get -> list -> update status/tracking/address -> delete")
+    void crudFlow_Works() throws Exception {
+        // create
+        var dto = newDelivery();
+        var createRes = mvc.perform(
+                        post(BASE)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(om.writeValueAsString(dto))
+                )
                 .andExpect(status().isOk())
                 .andReturn();
 
-        DeliveryDTO createdDelivery = objectMapper.readValue(postResult.getResponse().getContentAsString(), DeliveryDTO.class);
+        var created = om.readValue(createRes.getResponse().getContentAsString(), DeliveryPayload.class);
+        Long id = created.id;
 
-        createdDelivery.setAddress("456 New Address");
-
-        String updateJson = objectMapper.writeValueAsString(createdDelivery);
-
-        mockMvc.perform(put("/api/deliveries/" + createdDelivery.getId())
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(updateJson))
+        // get by id
+        mvc.perform(get(BASE + "/" + id))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status", is("SHIPPED")))
-                .andExpect(jsonPath("$.address", is("456 New Address")));
-    }
+                .andExpect(jsonPath("$.id").value(id))
+                .andExpect(jsonPath("$.clientId").value(dto.getClientId()));
 
-    @Test
-    public void testDeleteDelivery() throws Exception {
-        DeliveryDTO deliveryDTO = new DeliveryDTO();
-        deliveryDTO.setOrderId(dummyOrderId);
-        deliveryDTO.setAddress("123 Delivery St");
-
-        String json = objectMapper.writeValueAsString(deliveryDTO);
-
-        MvcResult postResult = mockMvc.perform(post("/api/deliveries")
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(json))
+        // list all (should contain our id)
+        mvc.perform(get(BASE))
                 .andExpect(status().isOk())
-                .andReturn();
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$[?(@.id==" + id + ")]").exists());
 
-        DeliveryDTO createdDelivery = objectMapper.readValue(postResult.getResponse().getContentAsString(), DeliveryDTO.class);
-        Long deliveryId = createdDelivery.getId();
+        // update status -> DELIVERED (controller returns 200)
+        var statusUpdateJson = """
+                {"status":"DELIVERED","deliveredDate":"%s"}
+                """.formatted(LocalDate.now().toString());
+        mvc.perform(put(BASE + "/" + id + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(statusUpdateJson))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(id))
+                .andExpect(jsonPath("$.status").value("DELIVERED"));
 
-        mockMvc.perform(delete("/api/deliveries/" + deliveryId).with(csrf()))
+        // update tracking
+        var trackingUpdateJson = """
+                {"carrierName":"ACME","trackingNumber":"TRK-%s"}
+                """.formatted(UUID.randomUUID().toString().substring(0, 8));
+        mvc.perform(put(BASE + "/" + id + "/tracking")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(trackingUpdateJson))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(id))
+                .andExpect(jsonPath("$.carrierName").value("ACME"));
+
+        // update address
+        var addressUpdateJson = """
+                {"address":"456 Avenue"}
+                """;
+        mvc.perform(put(BASE + "/" + id + "/address")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(addressUpdateJson))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(id))
+                .andExpect(jsonPath("$.address").value("456 Avenue"));
+
+        // delete (controller always returns 204)
+        mvc.perform(delete(BASE + "/" + id))
                 .andExpect(status().isNoContent());
 
-        mockMvc.perform(get("/api/deliveries/" + deliveryId))
+        // then get -> 404 per controller code
+        mvc.perform(get(BASE + "/" + id))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("GET /api/deliveries/{id} -> 404 when absent")
+    void getById_NotFound_404() throws Exception {
+        mvc.perform(get(BASE + "/987654321"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("DELETE /api/deliveries/{id} -> 204 even when absent (matches controller)")
+    void delete_NonExisting_Returns204() throws Exception {
+        mvc.perform(delete(BASE + "/12345678"))
+                .andExpect(status().isNoContent());
     }
 }

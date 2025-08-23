@@ -10,14 +10,22 @@ import com.magnii.minotor.repository.FeedbackRepository;
 import com.magnii.minotor.repository.OrderRepository;
 import com.magnii.minotor.repository.PaymentRepository;
 import com.magnii.minotor.repository.UserRepository;
+import com.magnii.minotor.service.NotificationService; // <- mocked so context loads
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase.Replace;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.mockito.Mockito;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -30,58 +38,62 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@AutoConfigureTestDatabase(replace = Replace.ANY)
+@ActiveProfiles("test")
 @WithMockUser(username = "test_user", roles = {"USER"})
-public class PaymentControllerIntegrationTest {
+class PaymentControllerIntegrationTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+    @Autowired private MockMvc mockMvc;
+    @Autowired private ObjectMapper objectMapper;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    @Autowired private PaymentRepository paymentRepository;
+    @Autowired private OrderRepository orderRepository;
+    @Autowired private UserRepository userRepository;
+    @Autowired private FeedbackRepository feedbackRepository;
 
-    @Autowired
-    private PaymentRepository paymentRepository;
-
-    @Autowired
-    private OrderRepository orderRepository;
-
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private FeedbackRepository feedbackRepository;
-
+    // 👇 Mock the bean that drags in TokenService so the context starts
     private Long orderId;
 
+    @TestConfiguration
+    static class MockNotificationServiceConfig {
+        @Bean
+        public NotificationService notificationService() {
+            return Mockito.mock(NotificationService.class);
+        }
+    }
+
+    @Autowired
+    private NotificationService notificationService;
+
     @BeforeEach
-    public void setup() {
-        // clear dependent data first to avoid FK constraints
+    void setup() {
+        // Clean tables in safe FK order
         feedbackRepository.deleteAll();
         paymentRepository.deleteAll();
         orderRepository.deleteAll();
         userRepository.deleteAll();
+
         objectMapper.registerModule(new JavaTimeModule());
 
-        // create a user
-        User user = new User();
-        user.setUsername("test_user");
-        user.setPassword("password");
-        user.setEmail("test@user.com");
-        user.setAddress("Somewhere");
-        user = userRepository.save(user);
+        // Seed a User
+        User u = new User();
+        u.setUsername("test_user");
+        u.setPassword("password");
+        u.setEmail("test@user.com");
+        u.setAddress("Somewhere");
+        u = userRepository.save(u);
 
-        // create an order
-        Order order = new Order();
-        order.setStatus(OrderStatus.PENDING);
-        order.setUser(user);
-        order.setTotal(BigDecimal.valueOf(100.00));
-        order = orderRepository.save(order);
-
-        orderId = order.getId();
+        // Seed an Order
+        Order o = new Order();
+        o.setUser(u);
+        o.setStatus(OrderStatus.PENDING);
+        o.setTotal(BigDecimal.valueOf(100.00));
+        o = orderRepository.save(o);
+        orderId = o.getId();
     }
 
     @Test
-    public void testCreateAndGetPayment() throws Exception {
+    void testCreateAndGetPayment() throws Exception {
         PaymentDTO dto = new PaymentDTO();
         dto.setOrderId(orderId);
         dto.setStatus("PENDING");
@@ -101,7 +113,7 @@ public class PaymentControllerIntegrationTest {
 
         PaymentDTO created = objectMapper.readValue(response, PaymentDTO.class);
 
-        mockMvc.perform(get("/api/payments/" + created.getId()))
+        mockMvc.perform(get("/api/payments/{id}", created.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id", is(created.getId().intValue())))
                 .andExpect(jsonPath("$.status", is("PENDING")))
@@ -109,28 +121,14 @@ public class PaymentControllerIntegrationTest {
     }
 
     @Test
-    public void testUpdatePayment() throws Exception {
-        PaymentDTO dto = new PaymentDTO();
-        dto.setOrderId(orderId);
-        dto.setStatus("PENDING");
-        dto.setAmount(BigDecimal.valueOf(200.00));
-        dto.setPaymentDate(LocalDateTime.now());
+    void testUpdatePayment() throws Exception {
+        PaymentDTO created = createPayment(orderId, "PENDING", BigDecimal.valueOf(200.00));
 
-        String response = mockMvc.perform(post("/api/payments")
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isOk())
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
-
-        PaymentDTO created = objectMapper.readValue(response, PaymentDTO.class);
         created.setStatus("COMPLETED");
         created.setAmount(BigDecimal.valueOf(300.00));
         created.setPaymentDate(LocalDateTime.now().plusDays(1));
 
-        mockMvc.perform(put("/api/payments/" + created.getId())
+        mockMvc.perform(put("/api/payments/{id}", created.getId())
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(created)))
@@ -140,53 +138,34 @@ public class PaymentControllerIntegrationTest {
     }
 
     @Test
-    public void testDeletePayment() throws Exception {
-        PaymentDTO dto = new PaymentDTO();
-        dto.setOrderId(orderId);
-        dto.setStatus("PENDING");
-        dto.setAmount(BigDecimal.valueOf(50.00));
-        dto.setPaymentDate(LocalDateTime.now());
+    void testDeletePayment() throws Exception {
+        PaymentDTO created = createPayment(orderId, "PENDING", BigDecimal.valueOf(50.00));
 
-        String response = mockMvc.perform(post("/api/payments")
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isOk())
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
-
-        PaymentDTO created = objectMapper.readValue(response, PaymentDTO.class);
-
-        mockMvc.perform(delete("/api/payments/" + created.getId())
-                        .with(csrf()))
+        mockMvc.perform(delete("/api/payments/{id}", created.getId()).with(csrf()))
                 .andExpect(status().isNoContent());
 
-        mockMvc.perform(get("/api/payments/" + created.getId()))
-                .andExpect(status().is4xxClientError());
+        mockMvc.perform(get("/api/payments/{id}", created.getId()))
+                .andExpect(status().isNotFound());
     }
 
     @Test
-    public void testGetPayment_NotFound() throws Exception {
-        // ask for a payment id that doesn’t exist → 404
+    void testGetPayment_NotFound() throws Exception {
         mockMvc.perform(get("/api/payments/{id}", 99999L))
                 .andExpect(status().isNotFound())
                 .andExpect(status().reason(containsString("Payment not found")));
     }
 
     @Test
-    public void testDeletePayment_NotFound() throws Exception {
-        // deleting a non‐existent payment → 404
+    void testDeletePayment_NotFound() throws Exception {
         mockMvc.perform(delete("/api/payments/{id}", 88888L).with(csrf()))
                 .andExpect(status().isNotFound())
                 .andExpect(status().reason(containsString("Payment not found")));
     }
 
     @Test
-    public void testCreatePayment_InvalidOrder() throws Exception {
-        // point at an orderId that doesn’t exist → 400 Bad Request
+    void testCreatePayment_InvalidOrder() throws Exception {
         PaymentDTO bad = new PaymentDTO();
-        bad.setOrderId(123456L);
+        bad.setOrderId(123456L); // not existing
         bad.setStatus("PENDING");
         bad.setAmount(BigDecimal.TEN);
         bad.setPaymentDate(LocalDateTime.now());
@@ -200,8 +179,7 @@ public class PaymentControllerIntegrationTest {
     }
 
     @Test
-    public void testUpdatePayment_NotFound() throws Exception {
-        // updating a non‐existent id → 404
+    void testUpdatePayment_NotFound() throws Exception {
         PaymentDTO dto = new PaymentDTO();
         dto.setOrderId(orderId);
         dto.setStatus("PENDING");
@@ -217,12 +195,9 @@ public class PaymentControllerIntegrationTest {
     }
 
     @Test
-    public void testUpdatePayment_InvalidOrder() throws Exception {
-        // create a valid payment…
+    void testUpdatePayment_InvalidOrder() throws Exception {
         PaymentDTO created = createPayment(orderId, "PENDING", BigDecimal.ONE);
-
-        // then try to re‐assign to a non‐existent order → 400
-        created.setOrderId(999999L);
+        created.setOrderId(999999L); // try to rewire to missing order
 
         mockMvc.perform(put("/api/payments/{id}", created.getId())
                         .with(csrf())
@@ -232,9 +207,7 @@ public class PaymentControllerIntegrationTest {
                 .andExpect(status().reason(containsString("No order exists with id")));
     }
 
-    //
-    // helper to keep things DRY
-    //
+    // ---- helper ----
     private PaymentDTO createPayment(Long orderId, String status, BigDecimal amount) throws Exception {
         PaymentDTO dto = new PaymentDTO();
         dto.setOrderId(orderId);
@@ -253,6 +226,4 @@ public class PaymentControllerIntegrationTest {
 
         return objectMapper.readValue(json, PaymentDTO.class);
     }
-
-
 }

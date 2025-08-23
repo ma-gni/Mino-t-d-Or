@@ -5,6 +5,7 @@ import com.magnii.minotor.service.CategoryService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.List;
 
@@ -32,9 +33,17 @@ public class CategoryController {
 
     @PostMapping
     public ResponseEntity<CategoryDTO> createCategory(
-            @Valid @RequestBody CategoryDTO categoryDTO) {
+            @Valid @RequestBody CategoryDTO categoryDTO,
+            UriComponentsBuilder uriBuilder) {
+
         CategoryDTO created = categoryService.createCategory(categoryDTO);
-        return ResponseEntity.ok(created);
+
+        return ResponseEntity
+                .created(uriBuilder
+                        .path("/api/categories/{id}")
+                        .buildAndExpand(created.getId())
+                        .toUri())
+                .body(created);
     }
 
     @PutMapping("/{id}")

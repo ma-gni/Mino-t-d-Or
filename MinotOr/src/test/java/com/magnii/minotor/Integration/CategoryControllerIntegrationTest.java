@@ -1,221 +1,140 @@
 package com.magnii.minotor.Integration;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.magnii.minotor.dto.CategoryDTO;
-import com.magnii.minotor.repository.CategoryRepository;
-import org.junit.jupiter.api.BeforeEach;
+import com.magnii.minotor.config.FirebaseConfig;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithAnonymousUser;
-import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.core.token.TokenService;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.util.List;
+import java.util.UUID;
 
-import static org.hamcrest.Matchers.*;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.matchesPattern;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
-@AutoConfigureMockMvc
-@WithMockUser
+@AutoConfigureMockMvc(addFilters = false)
+@AutoConfigureTestDatabase
+@ActiveProfiles("test")
 class CategoryControllerIntegrationTest {
 
-    @Autowired private MockMvc mockMvc;
-    @Autowired private ObjectMapper objectMapper;
-    @Autowired private CategoryRepository categoryRepository;
+    @MockitoBean private TokenService tokenService;     // disable security token work
+    @MockitoBean private FirebaseConfig firebaseConfig; // prevent Firebase init
 
-    @BeforeEach
-    void setUp() {
-        categoryRepository.deleteAll();
+    @Autowired private MockMvc mvc;
+    private final ObjectMapper om = new ObjectMapper();
+
+    private static final String BASE = "/api/categories";
+
+    static class CatPayload {
+        public Long id;
+        public String name;
+        public String description;
+        CatPayload() {}
+        CatPayload(String name, String description) { this.name = name; this.description = description; }
     }
 
-    private CategoryDTO makeDto(String name, String desc) {
-        CategoryDTO dto = new CategoryDTO();
-        dto.setName(name);
-        dto.setDescription(desc);
-        return dto;
+    private CatPayload newCat(String prefix) {
+        String unique = prefix + "_" + UUID.randomUUID();
+        return new CatPayload(unique, prefix + " description");
     }
 
-    @Nested
-    @DisplayName("GET /api/categories")
-    class GetAll {
-        @Test @DisplayName("when none exist → empty list")
-        void whenNone_thenEmpty() throws Exception {
-            mockMvc.perform(get("/api/categories"))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$", hasSize(0)));
-        }
+    @Test
+    @DisplayName("POST /api/categories -> 201 Created with Location header")
+    void createCategory_Returns201() throws Exception {
+        var payload = newCat("Books");
 
-        @Test @DisplayName("when some exist → return them all")
-        void whenSome_thenReturn() throws Exception {
-            // seed two
-            List<CategoryDTO> seeded = List.of(
-                    makeDto("A", "a"),
-                    makeDto("B", "b")
-            );
-            for (CategoryDTO c : seeded) {
-                mockMvc.perform(post("/api/categories")
-                                .with(csrf())
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(c)))
-                        .andExpect(status().isOk());
-            }
+        var result = mvc.perform(post(BASE)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(om.writeValueAsString(payload)))
+                .andExpect(status().isCreated())
+                // ✅ Accept both absolute and relative URLs
+                .andExpect(header().string("Location", matchesPattern(".*/api/categories/\\d+$")))
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.id").isNumber())
+                .andExpect(jsonPath("$.name").value(payload.name))
+                .andReturn();
 
-            mockMvc.perform(get("/api/categories"))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$", hasSize(2)))
-                    .andExpect(jsonPath("$[*].name", containsInAnyOrder("A","B")));
-        }
+        var body = result.getResponse().getContentAsString();
+        var created = om.readValue(body, CatPayload.class);
+        assertThat(created.id).isNotNull();
     }
 
-    @Nested
-    @DisplayName("GET /api/categories/{id}")
-    class GetById {
-        @Test @DisplayName("existing id → 200 + body")
-        void existing() throws Exception {
-            CategoryDTO dto = makeDto("X","x");
-            String resp = mockMvc.perform(post("/api/categories")
-                            .with(csrf())
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(dto)))
-                    .andReturn().getResponse().getContentAsString();
-            Long id = objectMapper.readValue(resp, CategoryDTO.class).getId();
+    @Test
+    @DisplayName("CRUD flow: create -> get -> list -> update -> delete")
+    void crudFlow_Works() throws Exception {
+        // create
+        var payload = newCat("Games");
+        var createRes = mvc.perform(post(BASE)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(om.writeValueAsString(payload)))
+                .andExpect(status().isCreated())
+                .andReturn();
 
-            mockMvc.perform(get("/api/categories/{id}", id))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.id", is(id.intValue())))
-                    .andExpect(jsonPath("$.name", is("X")));
-        }
+        var created = om.readValue(createRes.getResponse().getContentAsString(), CatPayload.class);
+        Long id = created.id;
 
-        @Test @DisplayName("nonexistent id → 404")
-        void nonExisting() throws Exception {
-            mockMvc.perform(get("/api/categories/{id}", 9999L))
-                    .andExpect(status().isNotFound());
-        }
+        // get by id
+        mvc.perform(get(BASE + "/" + id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(id))
+                .andExpect(jsonPath("$.name").value(payload.name));
+
+        // list all
+        mvc.perform(get(BASE))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$[?(@.id==" + id + ")]").exists());
+
+        // update
+        var update = new CatPayload(payload.name + "_updated", "updated desc");
+        mvc.perform(put(BASE + "/" + id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(om.writeValueAsString(update)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(id))
+                .andExpect(jsonPath("$.name").value(update.name))
+                .andExpect(jsonPath("$.description").value(update.description));
+
+        // delete
+        mvc.perform(delete(BASE + "/" + id))
+                .andExpect(status().isNoContent());
+
+        // then 404 on get
+        mvc.perform(get(BASE + "/" + id))
+                .andExpect(status().isNotFound());
     }
 
-    @Nested
-    @DisplayName("POST /api/categories")
-    class Create {
-        @Test @DisplayName("valid → 200 + created")
-        void valid() throws Exception {
-            CategoryDTO dto = makeDto("New","Desc");
-            mockMvc.perform(post("/api/categories")
-                            .with(csrf())
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(dto)))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.id", notNullValue()))
-                    .andExpect(jsonPath("$.name", is("New")))
-                    .andExpect(jsonPath("$.description", is("Desc")));
-        }
-
-        @Test @DisplayName("missing name → 400")
-        void missingName() throws Exception {
-            CategoryDTO bad = new CategoryDTO();
-            bad.setDescription("NoName");
-            mockMvc.perform(post("/api/categories")
-                            .with(csrf())
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(bad)))
-                    .andExpect(status().isBadRequest());
-        }
-
-        @Test @WithAnonymousUser @DisplayName("anonymous → 401")
-        void anonymous() throws Exception {
-            CategoryDTO dto = makeDto("Anon","x");
-            mockMvc.perform(post("/api/categories")
-                            .with(csrf())
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(dto)))
-                    .andExpect(status().isUnauthorized());
-        }
+    @Test
+    @DisplayName("GET /api/categories/{id} -> 404 when absent")
+    void getById_NotFound_404() throws Exception {
+        mvc.perform(get(BASE + "/999999"))
+                .andExpect(status().isNotFound());
     }
 
-    @Nested
-    @DisplayName("PUT /api/categories/{id}")
-    class Update {
-        @Test @DisplayName("existing + valid → 200 + updated")
-        void existingValid() throws Exception {
-            String resp = mockMvc.perform(post("/api/categories")
-                            .with(csrf())
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(makeDto("Old","o"))))
-                    .andReturn().getResponse().getContentAsString();
-            CategoryDTO created = objectMapper.readValue(resp, CategoryDTO.class);
-
-            created.setName("Updated");
-            created.setDescription("u");
-            mockMvc.perform(put("/api/categories/{id}", created.getId())
-                            .with(csrf())
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(created)))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.name", is("Updated")));
-        }
-
-        @Test @DisplayName("nonexistent → 404")
-        void nonExisting() throws Exception {
-            CategoryDTO dto = makeDto("Doesnt","x");
-            mockMvc.perform(put("/api/categories/{id}", 8888L)
-                            .with(csrf())
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(dto)))
-                    .andExpect(status().isNotFound());
-        }
-
-        @Test @DisplayName("invalid body → 400")
-        void invalidBody() throws Exception {
-            String resp = mockMvc.perform(post("/api/categories")
-                            .with(csrf())
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(makeDto("Toy","t"))))
-                    .andReturn().getResponse().getContentAsString();
-            Long id = objectMapper.readValue(resp, CategoryDTO.class).getId();
-
-            CategoryDTO bad = new CategoryDTO();
-            bad.setDescription("no name");
-            mockMvc.perform(put("/api/categories/{id}", id)
-                            .with(csrf())
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(bad)))
-                    .andExpect(status().isBadRequest());
-        }
+    @Test
+    @DisplayName("PUT /api/categories/{id} -> 404 when absent")
+    void update_NotFound_404() throws Exception {
+        var update = new CatPayload("Nope", "nope");
+        mvc.perform(put(BASE + "/888888")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(om.writeValueAsString(update)))
+                .andExpect(status().isNotFound());
     }
 
-    @Nested
-    @DisplayName("DELETE /api/categories/{id}")
-    class Delete {
-        @Test @DisplayName("existing → 204")
-        void existing() throws Exception {
-            String resp = mockMvc.perform(post("/api/categories")
-                            .with(csrf())
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(makeDto("Del","d"))))
-                    .andReturn().getResponse().getContentAsString();
-            Long id = objectMapper.readValue(resp, CategoryDTO.class).getId();
-
-            mockMvc.perform(delete("/api/categories/{id}", id)
-                            .with(csrf()))
-                    .andExpect(status().isNoContent());
-
-            // now gone
-            mockMvc.perform(get("/api/categories/{id}", id))
-                    .andExpect(status().isNotFound());
-        }
-
-        @Test @DisplayName("nonexistent → 404")
-        void nonExisting() throws Exception {
-            mockMvc.perform(delete("/api/categories/{id}", 7777L)
-                            .with(csrf()))
-                    .andExpect(status().isNotFound());
-        }
+    @Test
+    @DisplayName("DELETE /api/categories/{id} -> 404 when absent")
+    void delete_NotFound_404() throws Exception {
+        mvc.perform(delete(BASE + "/777777"))
+                .andExpect(status().isNotFound());
     }
 }

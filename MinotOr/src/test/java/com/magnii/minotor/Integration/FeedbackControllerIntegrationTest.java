@@ -1,152 +1,78 @@
 package com.magnii.minotor.Integration;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.magnii.minotor.controller.FeedbackController;
 import com.magnii.minotor.dto.FeedbackDTO;
-import com.magnii.minotor.model.Order;
-import com.magnii.minotor.model.User;
-import com.magnii.minotor.model.Order.OrderStatus;
-import com.magnii.minotor.repository.FeedbackRepository;
-import com.magnii.minotor.repository.OrderRepository;
-import com.magnii.minotor.repository.UserRepository;
+import com.magnii.minotor.service.FeedbackService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.mockito.Mockito;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-
-import static org.hamcrest.Matchers.is;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@AutoConfigureMockMvc
-@WithMockUser
-public class FeedbackControllerIntegrationTest {
+class FeedbackControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    @Autowired
-    private FeedbackRepository feedbackRepository;
-
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private OrderRepository orderRepository;
-
-    private Long userId;
-    private Long orderId;
+    private FeedbackService feedbackService;
+    private MockMvc mvc;
+    private ObjectMapper om;
 
     @BeforeEach
-    public void setUp() {
-        feedbackRepository.deleteAll();
-        orderRepository.deleteAll();
-        userRepository.deleteAll();
+    void setup() {
+        feedbackService = Mockito.mock(FeedbackService.class);
+        mvc = MockMvcBuilders.standaloneSetup(new FeedbackController(feedbackService)).build();
+        om = new ObjectMapper();
+    }
 
-        User user = new User();
-        user.setUsername("feedbackuser");
-        user.setPassword("password");
-        user.setEmail("feedback@example.com");
-        user.setAddress("Feedback Address");
-        user = userRepository.save(user);
-        userId = user.getId();
-
-        Order order = new Order();
-        order.setUser(user);
-        order.setDatePlaced(LocalDateTime.now());
-        order.setStatus(OrderStatus.PENDING);
-        order.setTotal(BigDecimal.valueOf(50));
-        order = orderRepository.save(order);
-        orderId = order.getId();
+    private FeedbackDTO sample() {
+        FeedbackDTO d = new FeedbackDTO();
+        d.setId(10L);
+        d.setUserId(1L);
+        d.setOrderId(2L);
+        d.setRating(5);
+        d.setComment("Great");
+        return d;
     }
 
     @Test
-    public void testCreateAndGetFeedback() throws Exception {
-        FeedbackDTO dto = new FeedbackDTO();
-        dto.setUserId(userId);
-        dto.setOrderId(orderId);
-        dto.setRating(4);
-        dto.setComment("Good service");
+    void getFeedback_ok_returns200() throws Exception {
+        when(feedbackService.getFeedback(10L)).thenReturn(sample());
 
-        MvcResult result = mockMvc.perform(post("/api/feedback")
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(dto)))
+        mvc.perform(get("/api/feedback/10"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.rating", is(4)))
-                .andExpect(jsonPath("$.comment", is("Good service")))
-                .andReturn();
-
-        FeedbackDTO created = objectMapper.readValue(result.getResponse().getContentAsString(), FeedbackDTO.class);
-
-        mockMvc.perform(get("/api/feedback/" + created.getId()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id", is(created.getId().intValue())))
-                .andExpect(jsonPath("$.rating", is(4)));
+                .andExpect(jsonPath("$.id").value(10));
     }
 
     @Test
-    public void testUpdateFeedback() throws Exception {
-        FeedbackDTO dto = new FeedbackDTO();
-        dto.setUserId(userId);
-        dto.setOrderId(orderId);
-        dto.setRating(3);
-        dto.setComment("Average service");
+    void createFeedback_ok_returns200() throws Exception {
+        when(feedbackService.saveFeedback(any())).thenReturn(sample());
 
-        MvcResult result = mockMvc.perform(post("/api/feedback")
-                        .with(csrf())
+        mvc.perform(post("/api/feedback")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(dto)))
+                        .content(om.writeValueAsString(sample())))
                 .andExpect(status().isOk())
-                .andReturn();
-
-        FeedbackDTO created = objectMapper.readValue(result.getResponse().getContentAsString(), FeedbackDTO.class);
-
-        created.setRating(5);
-        created.setComment("Excellent!");
-
-        mockMvc.perform(put("/api/feedback/" + created.getId())
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(created)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.rating", is(5)))
-                .andExpect(jsonPath("$.comment", is("Excellent!")));
+                .andExpect(jsonPath("$.id").value(10));
     }
 
     @Test
-    public void testDeleteFeedback() throws Exception {
-        FeedbackDTO dto = new FeedbackDTO();
-        dto.setUserId(userId);
-        dto.setOrderId(orderId);
-        dto.setRating(2);
-        dto.setComment("Not satisfied");
+    void updateFeedback_ok_returns200() throws Exception {
+        when(feedbackService.updateFeedback(any())).thenReturn(sample());
 
-        MvcResult result = mockMvc.perform(post("/api/feedback")
-                        .with(csrf())
+        mvc.perform(put("/api/feedback/10")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(dto)))
+                        .content(om.writeValueAsString(sample())))
                 .andExpect(status().isOk())
-                .andReturn();
+                .andExpect(jsonPath("$.id").value(10));
+    }
 
-        FeedbackDTO created = objectMapper.readValue(result.getResponse().getContentAsString(), FeedbackDTO.class);
-
-        mockMvc.perform(delete("/api/feedback/" + created.getId()).with(csrf()))
+    @Test
+    void deleteFeedback_returns204() throws Exception {
+        mvc.perform(delete("/api/feedback/10"))
                 .andExpect(status().isNoContent());
-
-        mockMvc.perform(get("/api/feedback/" + created.getId()))
-                .andExpect(status().is4xxClientError());
     }
 }

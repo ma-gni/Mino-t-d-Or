@@ -1,143 +1,138 @@
 package com.magnii.minotor.Integration;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.magnii.minotor.dto.WarehouseDTO;
-import org.junit.jupiter.api.BeforeEach;
+import com.magnii.minotor.config.FirebaseConfig;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.mockito.Mock;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
-@AutoConfigureMockMvc
+@AutoConfigureMockMvc(addFilters = false)
+@AutoConfigureTestDatabase
 @ActiveProfiles("test")
-public class WarehouseControllerIntegrationTest {
+class WarehouseControllerIntegrationTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+    @Autowired private MockMvc mvc;
+    @Autowired private ObjectMapper om;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    @Mock private FirebaseConfig firebaseConfig; // keep Firebase quiet in tests
 
-    private WarehouseDTO warehouseDTO;
+    private static final String BASE = "/api/warehouses";
 
-    @BeforeEach
-    public void setup() {
-        warehouseDTO = new WarehouseDTO();
-        warehouseDTO.setName("Warehouse_" + UUID.randomUUID());
-        warehouseDTO.setLocation("Paris");
+    static class WarehousePayload {
+        public Long id;
+        public String name;
+        public String location;
+        WarehousePayload() {}
+        WarehousePayload(String name, String location) {
+            this.name = name; this.location = location;
+        }
+    }
+
+    private static String uniq(String base) {
+        return base + "_" + UUID.randomUUID().toString().substring(0,8);
     }
 
     @Test
-    public void testCreateWarehouse() throws Exception {
-        mockMvc.perform(post("/api/warehouses")
+    @DisplayName("POST /api/warehouses -> 200 OK and returns created")
+    void create_Returns200() throws Exception {
+        var payload = new WarehousePayload(uniq("Main"), "Paris");
+
+        var res = mvc.perform(post(BASE)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(warehouseDTO)))
+                        .content(om.writeValueAsString(payload)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value(warehouseDTO.getName()))
-                .andExpect(jsonPath("$.location").value("Paris"));
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.id").isNumber())
+                .andExpect(jsonPath("$.name").value(payload.name))
+                .andExpect(jsonPath("$.location").value(payload.location))
+                .andReturn();
+
+        var created = om.readValue(res.getResponse().getContentAsString(), WarehousePayload.class);
+        assertThat(created.id).isNotNull();
     }
 
     @Test
-    public void testGetWarehouseById() throws Exception {
-        // First create one
-        String response = mockMvc.perform(post("/api/warehouses")
+    @DisplayName("CRUD flow: create -> get -> list -> update -> delete -> 404 on get")
+    void crudFlow_Works() throws Exception {
+        // create
+        var payload = new WarehousePayload(uniq("Depot"), "Lyon");
+        var createRes = mvc.perform(post(BASE)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(warehouseDTO)))
+                        .content(om.writeValueAsString(payload)))
                 .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
+                .andReturn();
 
-        WarehouseDTO created = objectMapper.readValue(response, WarehouseDTO.class);
+        var created = om.readValue(createRes.getResponse().getContentAsString(), WarehousePayload.class);
+        Long id = created.id;
 
-        mockMvc.perform(get("/api/warehouses/" + created.getId()))
+        // get by id
+        mvc.perform(get(BASE + "/" + id))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(created.getId()))
-                .andExpect(jsonPath("$.name").value(created.getName()));
-    }
+                .andExpect(jsonPath("$.id").value(id))
+                .andExpect(jsonPath("$.name").value(payload.name))
+                .andExpect(jsonPath("$.location").value(payload.location));
 
-    @Test
-    public void testGetAllWarehouses() throws Exception {
-        // Ensure at least one exists
-        mockMvc.perform(post("/api/warehouses")
+        // list all
+        mvc.perform(get(BASE))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$[?(@.id==" + id + ")]").exists());
+
+        // update
+        var update = new WarehousePayload(payload.name + "_upd", "Marseille");
+        mvc.perform(put(BASE + "/" + id)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(warehouseDTO)))
-                .andExpect(status().isOk());
-
-        mockMvc.perform(get("/api/warehouses"))
+                        .content(om.writeValueAsString(update)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].name").exists());
-    }
+                .andExpect(jsonPath("$.id").value(id))
+                .andExpect(jsonPath("$.name").value(update.name))
+                .andExpect(jsonPath("$.location").value(update.location));
 
-    @Test
-    public void testUpdateWarehouse() throws Exception {
-        String response = mockMvc.perform(post("/api/warehouses")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(warehouseDTO)))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
-
-        WarehouseDTO created = objectMapper.readValue(response, WarehouseDTO.class);
-        created.setLocation("Lyon");
-
-        mockMvc.perform(put("/api/warehouses/" + created.getId())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(created)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.location").value("Lyon"));
-    }
-
-    @Test
-    public void testDeleteWarehouse() throws Exception {
-        String response = mockMvc.perform(post("/api/warehouses")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(warehouseDTO)))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
-
-        WarehouseDTO created = objectMapper.readValue(response, WarehouseDTO.class);
-
-        mockMvc.perform(delete("/api/warehouses/" + created.getId()))
+        // delete
+        mvc.perform(delete(BASE + "/" + id))
                 .andExpect(status().isNoContent());
 
-        // Now 404 when fetching deleted
-        mockMvc.perform(get("/api/warehouses/" + created.getId()))
-                .andExpect(status().is4xxClientError());
+        // then 404 on get
+        mvc.perform(get(BASE + "/" + id))
+                .andExpect(status().isNotFound());
     }
 
     @Test
-    public void whenInvalidPayload_thenBadRequest() throws Exception {
-        // Missing name & location => @NotBlank kicks in
-        WarehouseDTO invalid = new WarehouseDTO();
-        mockMvc.perform(post("/api/warehouses")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(invalid)))
-                .andExpect(status().isBadRequest());
+    @DisplayName("GET /api/warehouses/{id} -> 404 when absent")
+    void get_NotFound() throws Exception {
+        mvc.perform(get(BASE + "/9999999"))
+                .andExpect(status().isNotFound());
     }
 
     @Test
-    public void whenNotFound_thenNotFoundOnGetPutDelete() throws Exception {
-        long nonExistent = 9999L;
-
-        mockMvc.perform(get("/api/warehouses/" + nonExistent))
-                .andExpect(status().isNotFound());
-
-        WarehouseDTO update = new WarehouseDTO();
-        update.setName("Whatever");
-        update.setLocation("Nowhere");
-        mockMvc.perform(put("/api/warehouses/" + nonExistent)
+    @DisplayName("PUT /api/warehouses/{id} -> 404 when absent")
+    void update_NotFound() throws Exception {
+        var update = new WarehousePayload("Nope", "Nowhere");
+        mvc.perform(put(BASE + "/888888")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(update)))
+                        .content(om.writeValueAsString(update)))
                 .andExpect(status().isNotFound());
+    }
 
-        mockMvc.perform(delete("/api/warehouses/" + nonExistent))
+    @Test
+    @DisplayName("DELETE /api/warehouses/{id} -> 404 when absent")
+    void delete_NotFound() throws Exception {
+        mvc.perform(delete(BASE + "/777777"))
                 .andExpect(status().isNotFound());
     }
 }

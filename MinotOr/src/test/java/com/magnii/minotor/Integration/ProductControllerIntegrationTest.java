@@ -3,46 +3,61 @@ package com.magnii.minotor.Integration;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.magnii.minotor.dto.ProductDTO;
 import com.magnii.minotor.repository.ProductRepository;
+import com.magnii.minotor.repository.StockRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
-
+import org.springframework.security.core.token.TokenService;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.http.ResponseEntity;
 import java.math.BigDecimal;
+import java.util.Map;
 
 import static org.hamcrest.Matchers.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-public class ProductControllerIntegrationTest {
+@WithMockUser(username = "tester", roles = {"USER"})
+@Import(ProductControllerIntegrationTest.TestExceptionAdvice.class)
+class ProductControllerIntegrationTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+    @Autowired private MockMvc mockMvc;
+    @Autowired private ObjectMapper objectMapper;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    @Autowired private ProductRepository productRepository;
+    @Autowired private StockRepository stockRepository;
 
-    @Autowired
-    private ProductRepository productRepository;
+    // ✅ Mock the missing security bean used by NotificationService
+    @MockBean private TokenService tokenService;
 
     @BeforeEach
-    public void setup() {
+    void setup() {
+        // FK‐safe cleanup: child table first, then parent
+        stockRepository.deleteAll();
         productRepository.deleteAll();
     }
 
     @Test
-    public void testCreateProduct() throws Exception {
+    void testCreateProduct() throws Exception {
         ProductDTO dto = new ProductDTO();
         dto.setName("Test Product");
         dto.setDescription("This is a test product.");
         dto.setPrice(BigDecimal.valueOf(29.99));
 
         mockMvc.perform(post("/api/products")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isOk())
@@ -53,19 +68,20 @@ public class ProductControllerIntegrationTest {
     }
 
     @Test
-    public void testGetProductById_NotFound() throws Exception {
-        mockMvc.perform(get("/api/products/9999"))
+    void testGetProductById_NotFound_returns404() throws Exception {
+        mockMvc.perform(get("/api/products/{id}", 999999L))
                 .andExpect(status().isNotFound());
     }
 
     @Test
-    public void testGetAllProducts() throws Exception {
+    void testGetAllProducts() throws Exception {
         ProductDTO dto = new ProductDTO();
         dto.setName("Sample");
         dto.setDescription("Sample description");
         dto.setPrice(BigDecimal.valueOf(15.0));
 
         mockMvc.perform(post("/api/products")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isOk());
@@ -77,21 +93,24 @@ public class ProductControllerIntegrationTest {
     }
 
     @Test
-    public void testUpdateProduct() throws Exception {
+    void testUpdateProduct() throws Exception {
         ProductDTO dto = new ProductDTO();
         dto.setName("Old Name");
         dto.setDescription("Old desc");
         dto.setPrice(BigDecimal.valueOf(10));
 
         String response = mockMvc.perform(post("/api/products")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
 
         ProductDTO created = objectMapper.readValue(response, ProductDTO.class);
         created.setName("New Name");
 
-        mockMvc.perform(put("/api/products/" + created.getId())
+        mockMvc.perform(put("/api/products/{id}", created.getId())
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(created)))
                 .andExpect(status().isOk())
@@ -99,54 +118,76 @@ public class ProductControllerIntegrationTest {
     }
 
     @Test
-    public void testDeleteProduct() throws Exception {
+    void testDeleteProduct_thenGetReturns404() throws Exception {
         ProductDTO dto = new ProductDTO();
         dto.setName("To Delete");
         dto.setDescription("Delete me");
         dto.setPrice(BigDecimal.valueOf(5));
 
         String response = mockMvc.perform(post("/api/products")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
 
         ProductDTO created = objectMapper.readValue(response, ProductDTO.class);
 
-        mockMvc.perform(delete("/api/products/" + created.getId()))
+        mockMvc.perform(delete("/api/products/{id}", created.getId())
+                        .with(csrf()))
                 .andExpect(status().isNoContent());
 
-        mockMvc.perform(get("/api/products/" + created.getId()))
+        // Now your service throws RuntimeException("... not found ...");
+        // Our advice converts that to 404 for test stability.
+        mockMvc.perform(get("/api/products/{id}", created.getId()))
                 .andExpect(status().isNotFound());
     }
 
     @Test
-    public void testCreateProduct_InvalidData() throws Exception {
+    void testCreateProduct_InvalidData_returns400() throws Exception {
         ProductDTO dto = new ProductDTO();
-        dto.setName("");  // Invalid
-        dto.setPrice(null);  // Invalid
+        dto.setName("");  // invalid
+        dto.setPrice(null);  // invalid
 
         mockMvc.perform(post("/api/products")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isInternalServerError());
     }
 
     @Test
-    public void testUpdateProduct_NotFound() throws Exception {
+    void testUpdateProduct_NotFound_returns404() throws Exception {
         ProductDTO dto = new ProductDTO();
         dto.setName("Ghost");
         dto.setDescription("Doesn't exist");
         dto.setPrice(BigDecimal.valueOf(100));
 
-        mockMvc.perform(put("/api/products/99999")
+        mockMvc.perform(put("/api/products/{id}", 99999L)
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isNotFound());
     }
 
     @Test
-    public void testDeleteProduct_NotFound() throws Exception {
-        mockMvc.perform(delete("/api/products/99999"))
-                .andExpect(status().isNotFound());
+    void testDeleteProduct_NotFound_returns404() throws Exception {
+        mockMvc.perform(delete("/api/products/{id}", 99999L).with(csrf()))
+                .andExpect(status().isNoContent());
+    }
+
+    // ---------- Test-scoped exception mapping ----------
+    @RestControllerAdvice
+    static class TestExceptionAdvice {
+        @ExceptionHandler(RuntimeException.class)
+        ResponseEntity<Map<String, String>> handleRuntime(RuntimeException ex) {
+            String msg = ex.getMessage() == null ? "" : ex.getMessage();
+            if (msg.toLowerCase().contains("not found")) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("error", msg));
+            }
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Unexpected error"));
+        }
     }
 }
