@@ -1,0 +1,26 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate.dialect: org.hibernate.dialect.H2Dialect
+
+security:
+  token:
+    server-secret: test_token_secret
+    server-integer: 1
+
+jwt:
+  secret: test_jwt_secret
+  expiration-minutes: 60
+
+# If migrations exist and cause failures during tests, uncomment one or both:
+# spring:
+#   liquibase:
+#     enabled: false
+#   flyway:
+#     enabled: false
