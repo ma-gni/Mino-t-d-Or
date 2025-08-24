@@ -11,7 +11,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.mockito.Mock;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.token.TokenService;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.UUID;
@@ -26,10 +28,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("test")
 class WarehouseControllerIntegrationTest {
 
+    @MockitoBean
+    private TokenService tokenService;     // ✅ mock token service
+    @MockitoBean private com.magnii.minotor.config.FirebaseConfig firebaseConfig; // ✅ mock Firebase
+
     @Autowired private MockMvc mvc;
     @Autowired private ObjectMapper om;
-
-    @Mock private FirebaseConfig firebaseConfig; // keep Firebase quiet in tests
 
     private static final String BASE = "/api/warehouses";
 
